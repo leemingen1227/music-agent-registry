@@ -55,7 +55,7 @@ const deployYourContract: DeployFunction = async function (hre: HardhatRuntimeEn
   const agentGovernance = await hre.ethers.getContract<Contract>("AgentGovernance", deployer);
   //transfer ownership of agentRegistry to agentGovernance
   await aiAgentRegistry.transferOwnership(agentGovernance.target);
-  await musicToken.transfer('0xedBA010f248A4267061BeE3BFB5295A8d8c75d8A', hre.ethers.parseEther("1000"));
+  await musicToken.transfer('0x96F16eE794a9d4C520F2F8F9548051ec901ED909', hre.ethers.parseEther("1000"));
 
 };
 

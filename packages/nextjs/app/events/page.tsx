@@ -144,8 +144,10 @@ const Events: NextPage = () => {
                 <thead>
                   <tr>
                     <th className="bg-primary">Model Hash</th>
+                    <th className="bg-primary">User</th>
                     <th className="bg-primary">Aligns with Strategy</th>
                     <th className="bg-primary">Rating</th>
+                    <th className="bg-primary">Comment</th>
                     <th className="bg-primary">Timestamp</th>
                   </tr>
                 </thead>
@@ -158,8 +160,10 @@ const Events: NextPage = () => {
                     feedbackEvents?.map((event, index) => (
                       <tr key={index}>
                         <td>{event.args.modelHash}</td>
+                        <td>{event.args.user}</td>
                         <td>{event.args.alignsWithStrategy ? "Yes" : "No"}</td>
                         <td>{event.args.rating}/5</td>
+                        <td>{event.args.comment}</td>
                         <td>{new Date(Number(event.args.timestamp) * 1000).toLocaleString()}</td>
                       </tr>
                     ))
