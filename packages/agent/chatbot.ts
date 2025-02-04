@@ -54,27 +54,27 @@ interface AgentStats {
   averageRating: bigint;
 }
 
+const SUBMIT_FEEDBACK_PROMPT = `
+Submits feedback for an AI agent's recommendation, including whether it aligns with the strategy,
+a rating (1-5), and a comment explaining the rating.
+`;
+
 // Custom actions for AI Agent Registry
 const submitFeedbackProvider = customActionProvider<EvmWalletProvider>({
   name: "submit_feedback",
-  description: "Submits feedback for an AI agent's recommendation, including whether it aligns with the strategy, a rating (1-5), and a comment explaining the rating.",
+  description: SUBMIT_FEEDBACK_PROMPT,
   schema: SubmitFeedbackSchema,
   invoke: async (walletProvider, args) => {
     try {
       const data = encodeFunctionData({
         abi: AIAgentRegistryABI,
         functionName: "submitFeedback",
-        args: [
-          process.env.AGENT_MODEL_HASH!,
-          args.alignsWithStrategy,
-          args.rating.toString(),
-          args.comment
-        ],
+        args: [process.env.AGENT_MODEL_HASH!, args.alignsWithStrategy, args.rating.toString(), args.comment]
       });
 
       const hash = await walletProvider.sendTransaction({
         to: process.env.AI_AGENT_REGISTRY_ADDRESS! as `0x${string}`,
-        data,
+        data
       });
 
       await walletProvider.waitForTransactionReceipt(hash);
@@ -87,33 +87,34 @@ const submitFeedbackProvider = customActionProvider<EvmWalletProvider>({
   }
 });
 
+const REFRESH_DATA_PROMPT = `
+Updates your knowledge of your current strategy and recent feedback from the blockchain.
+Use this when you want to ensure you have the latest information about your performance and strategy.
+`;
+
 const getAgentDataProvider = customActionProvider<EvmWalletProvider>({
   name: "get_agent_data",
-  description: "Retrieves the agent's current strategy and recent feedback from the blockchain",
+  description: REFRESH_DATA_PROMPT,
   schema: GetAgentDataSchema,
-  invoke: async (walletProvider, args) => {
+  invoke: async () => {
     try {
       const provider = new JsonRpcProvider(process.env.RPC_URL);
-      const contract = new Contract(
-        process.env.AI_AGENT_REGISTRY_ADDRESS!,
-        AIAgentRegistryABI,
-        provider
-      );
+      const contract = new Contract(process.env.AI_AGENT_REGISTRY_ADDRESS!, AIAgentRegistryABI, provider);
 
       // Get agent's strategy
-      const strategy = await contract.getAgentStrategy(args.modelHash);
+      const strategy = await contract.getAgentStrategy(process.env.AGENT_MODEL_HASH!);
 
       // Get agent stats
-      const stats = (await contract.getAgentStats(args.modelHash)) as AgentStats;
+      const stats = (await contract.getAgentStats(process.env.AGENT_MODEL_HASH!)) as AgentStats;
       const { totalFeedbacks, positiveAlignments, averageRating } = stats;
 
       // Get recent feedback using event logs
-      const filter = contract.filters.FeedbackSubmitted(args.modelHash);
+      const filter = contract.filters.FeedbackSubmitted(process.env.AGENT_MODEL_HASH!);
       const events = (await contract.queryFilter(filter)) as FeedbackEvent[];
       const recentEvents = events.slice(-5); // Get last 5 feedback events
 
       let feedbackStr = `Stats:\n- Total Feedbacks: ${totalFeedbacks}\n- Positive Alignments: ${positiveAlignments}\n- Average Rating: ${Number(averageRating) / 100}\n\nRecent feedback:\n`;
-      
+
       for (const event of recentEvents) {
         const { user, alignsWithStrategy, rating, comment, timestamp } = event.args || {};
         if (timestamp) {
@@ -134,21 +135,13 @@ const getAgentDataProvider = customActionProvider<EvmWalletProvider>({
  * Validates that required environment variables are set
  */
 function validateEnvironment(): void {
-  const requiredVars = [
-    "OPENAI_API_KEY",
-    "CDP_API_KEY_NAME",
-    "CDP_API_KEY_PRIVATE_KEY",
-    "AI_AGENT_REGISTRY_ADDRESS",
-    "RPC_URL",
-    "AGENT_MODEL_HASH",
-    "NETWORK_ID"
-  ];
+  const requiredVars = ["OPENAI_API_KEY", "CDP_API_KEY_NAME", "CDP_API_KEY_PRIVATE_KEY", "AI_AGENT_REGISTRY_ADDRESS", "RPC_URL", "AGENT_MODEL_HASH", "NETWORK_ID"];
 
-  const missingVars = requiredVars.filter(varName => !process.env[varName]);
+  const missingVars = requiredVars.filter((varName) => !process.env[varName]);
 
   if (missingVars.length > 0) {
     console.error("Error: Required environment variables are not set");
-    missingVars.forEach(varName => {
+    missingVars.forEach((varName) => {
       console.error(`${varName}=your_${varName.toLowerCase()}_here`);
     });
     process.exit(1);
@@ -161,49 +154,45 @@ validateEnvironment();
 const WALLET_DATA_FILE = "wallet_data.txt";
 
 async function getAgentData(agentkit: AgentKit): Promise<{ strategy: string; feedback: string }> {
-    try {
-      // Get agent's strategy
-      const provider = new JsonRpcProvider(process.env.RPC_URL);
-      const contract = new Contract(
-        process.env.AI_AGENT_REGISTRY_ADDRESS!,
-        AIAgentRegistryABI,
-        provider
-      );
+  try {
+    // Get agent's strategy
+    const provider = new JsonRpcProvider(process.env.RPC_URL);
+    const contract = new Contract(process.env.AI_AGENT_REGISTRY_ADDRESS!, AIAgentRegistryABI, provider);
 
-      // Get agent's strategy
-      const strategy = await contract.getAgentStrategy(process.env.AGENT_MODEL_HASH!);
+    // Get agent's strategy
+    const strategy = await contract.getAgentStrategy(process.env.AGENT_MODEL_HASH!);
 
-      // Get agent stats
-      const stats = (await contract.getAgentStats(process.env.AGENT_MODEL_HASH!)) as AgentStats;
-      const { totalFeedbacks, positiveAlignments, averageRating } = stats;
+    // Get agent stats
+    const stats = (await contract.getAgentStats(process.env.AGENT_MODEL_HASH!)) as AgentStats;
+    const { totalFeedbacks, positiveAlignments, averageRating } = stats;
 
-      // Get recent feedback using event logs
-      const filter = contract.filters.FeedbackSubmitted(process.env.AGENT_MODEL_HASH!);
-      const events = (await contract.queryFilter(filter)) as FeedbackEvent[];
-      const recentEvents = events.slice(-5); // Get last 5 feedback events
+    // Get recent feedback using event logs
+    const filter = contract.filters.FeedbackSubmitted(process.env.AGENT_MODEL_HASH!);
+    const events = (await contract.queryFilter(filter)) as FeedbackEvent[];
+    const recentEvents = events.slice(-5); // Get last 5 feedback events
 
-      let feedbackStr = `Stats:\n- Total Feedbacks: ${totalFeedbacks}\n- Positive Alignments: ${positiveAlignments}\n- Average Rating: ${Number(averageRating) / 100}\n\nRecent feedback:\n`;
-      
-      for (const event of recentEvents) {
-        const { user, alignsWithStrategy, rating, comment, timestamp } = event.args || {};
-        if (timestamp) {
-          const date = new Date(Number(timestamp) * 1000);
-          feedbackStr += `\n- User: ${user}\n  Rating: ${rating}/5\n  Aligns with strategy: ${alignsWithStrategy}\n  Comment: ${comment}\n  Time: ${date.toISOString()}\n`;
-        }
+    let feedbackStr = `Stats:\n- Total Feedbacks: ${totalFeedbacks}\n- Positive Alignments: ${positiveAlignments}\n- Average Rating: ${Number(averageRating) / 100}\n\nRecent feedback:\n`;
+
+    for (const event of recentEvents) {
+      const { user, alignsWithStrategy, rating, comment, timestamp } = event.args || {};
+      if (timestamp) {
+        const date = new Date(Number(timestamp) * 1000);
+        feedbackStr += `\n- User: ${user}\n  Rating: ${rating}/5\n  Aligns with strategy: ${alignsWithStrategy}\n  Comment: ${comment}\n  Time: ${date.toISOString()}\n`;
       }
-      
-      return {
-        strategy,
-        feedback: feedbackStr
-      };
-    } catch (error) {
-      console.error("Error getting agent data:", error);
-      return {
-        strategy: "Failed to get strategy",
-        feedback: "Failed to get feedback"
-      };
     }
+
+    return {
+      strategy,
+      feedback: feedbackStr
+    };
+  } catch (error) {
+    console.error("Error getting agent data:", error);
+    return {
+      strategy: "Failed to get strategy",
+      feedback: "Failed to get feedback"
+    };
   }
+}
 
 /**
  * Initialize the agent with CDP Agentkit and AI Agent Registry actions
@@ -211,7 +200,7 @@ async function getAgentData(agentkit: AgentKit): Promise<{ strategy: string; fee
 async function initializeAgent() {
   try {
     const llm = new ChatOpenAI({
-      model: "gpt-4o-mini",
+      model: "gpt-4o-mini"
     });
 
     let walletDataStr: string | null = null;
@@ -228,7 +217,7 @@ async function initializeAgent() {
       apiKeyName: process.env.CDP_API_KEY_NAME,
       apiKeyPrivateKey: process.env.CDP_API_KEY_PRIVATE_KEY?.replace(/\\n/g, "\n"),
       cdpWalletData: walletDataStr || undefined,
-      networkId: process.env.NETWORK_ID || "base-sepolia",
+      networkId: process.env.NETWORK_ID || "base-sepolia"
     };
 
     const walletProvider = await CdpWalletProvider.configureWithWallet(config);
@@ -243,15 +232,15 @@ async function initializeAgent() {
         erc20ActionProvider(),
         cdpApiActionProvider({
           apiKeyName: process.env.CDP_API_KEY_NAME,
-          apiKeyPrivateKey: process.env.CDP_API_KEY_PRIVATE_KEY?.replace(/\\n/g, "\n"),
+          apiKeyPrivateKey: process.env.CDP_API_KEY_PRIVATE_KEY?.replace(/\\n/g, "\n")
         }),
         cdpWalletActionProvider({
           apiKeyName: process.env.CDP_API_KEY_NAME,
-          apiKeyPrivateKey: process.env.CDP_API_KEY_PRIVATE_KEY?.replace(/\\n/g, "\n"),
+          apiKeyPrivateKey: process.env.CDP_API_KEY_PRIVATE_KEY?.replace(/\\n/g, "\n")
         }),
         submitFeedbackProvider,
-        getAgentDataProvider,
-      ],
+        getAgentDataProvider
+      ]
     });
 
     const tools = await getLangChainTools(agentkit);
@@ -293,7 +282,7 @@ async function initializeAgent() {
         
         Be concise and helpful with your responses.
         Refrain from restating your tools' descriptions unless explicitly requested.
-      `,
+      `
     });
 
     // Save wallet data
@@ -315,9 +304,7 @@ async function runAutonomousMode(agent: any, config: any, interval = 10) {
 
   while (true) {
     try {
-      const thought =
-        "Be creative and do something interesting with AI agents on the blockchain. " +
-        "Choose an action or set of actions that highlights your abilities with the AI Agent Registry.";
+      const thought = "Be creative and do something interesting with AI agents on the blockchain. " + "Choose an action or set of actions that highlights your abilities with the AI Agent Registry.";
 
       const stream = await agent.stream({ messages: [new HumanMessage(thought)] }, config);
 
@@ -330,7 +317,7 @@ async function runAutonomousMode(agent: any, config: any, interval = 10) {
         console.log("-------------------");
       }
 
-      await new Promise(resolve => setTimeout(resolve, interval * 1000));
+      await new Promise((resolve) => setTimeout(resolve, interval * 1000));
     } catch (error) {
       if (error instanceof Error) {
         console.error("Error:", error.message);
@@ -348,11 +335,10 @@ async function runChatMode(agent: any, config: any) {
 
   const rl = readline.createInterface({
     input: process.stdin,
-    output: process.stdout,
+    output: process.stdout
   });
 
-  const question = (prompt: string): Promise<string> =>
-    new Promise(resolve => rl.question(prompt, resolve));
+  const question = (prompt: string): Promise<string> => new Promise((resolve) => rl.question(prompt, resolve));
 
   try {
     while (true) {
@@ -389,20 +375,17 @@ async function runChatMode(agent: any, config: any) {
 async function chooseMode(): Promise<"chat" | "auto"> {
   const rl = readline.createInterface({
     input: process.stdin,
-    output: process.stdout,
+    output: process.stdout
   });
 
-  const question = (prompt: string): Promise<string> =>
-    new Promise(resolve => rl.question(prompt, resolve));
+  const question = (prompt: string): Promise<string> => new Promise((resolve) => rl.question(prompt, resolve));
 
   while (true) {
     console.log("\nAvailable modes:");
     console.log("1. chat    - Interactive chat mode");
     console.log("2. auto    - Autonomous action mode");
 
-    const choice = (await question("\nChoose a mode (enter number or name): "))
-      .toLowerCase()
-      .trim();
+    const choice = (await question("\nChoose a mode (enter number or name): ")).toLowerCase().trim();
 
     if (choice === "1" || choice === "chat") {
       rl.close();
@@ -438,8 +421,8 @@ async function main() {
 
 if (require.main === module) {
   console.log("Starting Agent...");
-  main().catch(error => {
+  main().catch((error) => {
     console.error("Fatal error:", error);
     process.exit(1);
   });
-} 
+}

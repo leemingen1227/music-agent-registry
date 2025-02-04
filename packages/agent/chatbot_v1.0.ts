@@ -43,12 +43,8 @@ const AI_AGENT_REGISTRY_ABI: AbiItem[] = [
   {
     name: "getAgentStrategy",
     type: "function",
-    inputs: [
-      { name: "modelHash", type: "string" }
-    ],
-    outputs: [
-      { name: "", type: "string" }
-    ],
+    inputs: [{ name: "modelHash", type: "string" }],
+    outputs: [{ name: "", type: "string" }],
     stateMutability: "view"
   },
   {
@@ -72,8 +68,8 @@ const AI_AGENT_REGISTRY_ABI: AbiItem[] = [
       { name: "rating", type: "uint8", indexed: false },
       { name: "comment", type: "string", indexed: false },
       { name: "timestamp", type: "uint256", indexed: false }
-        ]
-      }
+    ]
+  }
 ];
 
 // Define the prompts for tools
@@ -92,7 +88,7 @@ const SubmitFeedbackInput = z.object({
   modelHash: z.string().describe("The model hash of the AI agent. e.g. 'QmHash123'"),
   alignsWithStrategy: z.boolean().describe("Whether the recommendation aligns with the agent's strategy"),
   rating: z.number().int().min(1).max(5).describe("Rating from 1-5, where 5 is best"),
-  comment: z.string().describe("Detailed feedback comment explaining the rating"),
+  comment: z.string().describe("Detailed feedback comment explaining the rating")
 });
 
 const RefreshDataInput = z.object({});
@@ -106,13 +102,7 @@ interface FeedbackEvent {
 }
 
 // Tool functions
-async function invokeContract(
-  wallet: any,
-  contractAddress: string,
-  method: string,
-  abi: Array<AbiFunction>,
-  args: Record<string, any>
-): Promise<string> {
+async function invokeContract(wallet: any, contractAddress: string, method: string, abi: Array<AbiFunction>, args: Record<string, any>): Promise<string> {
   try {
     const methodAbi = abi.find((func) => func.name === method);
     if (!methodAbi) {
@@ -123,7 +113,7 @@ async function invokeContract(
       contractAddress,
       method,
       args,
-      abi,
+      abi
     });
 
     const receipt = await contractInvocation.wait();
@@ -152,9 +142,7 @@ async function refreshAgentData(wallet: any, args: {}): Promise<string> {
     const strategy = await contract.getAgentStrategy(process.env.AGENT_MODEL_HASH!);
 
     // Get recent feedback using event logs
-    const eventFilter = contract.filters["FeedbackSubmitted(string,address,bool,uint8,string,uint256)"](
-      process.env.AGENT_MODEL_HASH
-    );
+    const eventFilter = contract.filters["FeedbackSubmitted(string,address,bool,uint8,string,uint256)"](process.env.AGENT_MODEL_HASH);
     const events = await contract.queryFilter(eventFilter);
     const recentEvents = events.slice(-5); // Get last 5 feedback events
 
@@ -164,14 +152,14 @@ async function refreshAgentData(wallet: any, args: {}): Promise<string> {
       const log = event as unknown as {
         args: [string, string, boolean, number, string, bigint];
       };
-      
+
       if (log.args) {
         const [modelHash, user, alignsWithStrategy, rating, comment, timestamp] = log.args;
         const date = new Date(Number(timestamp) * 1000);
         feedbackStr += `\n- User: ${user}\n  Rating: ${rating}/5\n  Aligns with strategy: ${alignsWithStrategy}\n  Comment: ${comment}\n  Time: ${date.toISOString()}\n`;
       }
     }
-    
+
     return `Updated agent data:\n\nCurrent strategy: ${strategy}\n\n${feedbackStr}`;
   } catch (error) {
     console.error("Error refreshing agent data:", error);
@@ -186,23 +174,14 @@ function createAIAgentRegistryTools(agentkit: CdpAgentkit) {
       name: "submit_feedback",
       description: SUBMIT_FEEDBACK_PROMPT,
       argsSchema: SubmitFeedbackInput,
-      func: async (
-        wallet: any,
-        params: z.infer<typeof SubmitFeedbackInput>
-      ) => {
-        return invokeContract(
-          wallet,
-          process.env.AI_AGENT_REGISTRY_ADDRESS!,
-          "submitFeedback",
-          AI_AGENT_REGISTRY_ABI as Array<AbiFunction>,
-          {
-              modelHash: params.modelHash,
-              alignsWithStrategy: params.alignsWithStrategy,
-              rating: params.rating.toString(),
-              comment: params.comment
-        }
-        );
-      },
+      func: async (wallet: any, params: z.infer<typeof SubmitFeedbackInput>) => {
+        return invokeContract(wallet, process.env.AI_AGENT_REGISTRY_ADDRESS!, "submitFeedback", AI_AGENT_REGISTRY_ABI as Array<AbiFunction>, {
+          modelHash: params.modelHash,
+          alignsWithStrategy: params.alignsWithStrategy,
+          rating: params.rating.toString(),
+          comment: params.comment
+        });
+      }
     },
     agentkit
   );
@@ -212,7 +191,7 @@ function createAIAgentRegistryTools(agentkit: CdpAgentkit) {
       name: "refresh_agent_data",
       description: REFRESH_DATA_PROMPT,
       argsSchema: RefreshDataInput,
-      func: refreshAgentData,
+      func: refreshAgentData
     },
     agentkit
   );
@@ -236,10 +215,10 @@ function validateEnvironment(): void {
     "AI_AGENT_REGISTRY_ADDRESS",
     "RPC_URL",
     "AGENT_MODEL_HASH",
-    "NETWORK_ID"  // Make NETWORK_ID required
+    "NETWORK_ID" // Make NETWORK_ID required
   ];
-  
-  requiredVars.forEach(varName => {
+
+  requiredVars.forEach((varName) => {
     if (!process.env[varName]) {
       missingVars.push(varName);
     }
@@ -247,7 +226,7 @@ function validateEnvironment(): void {
 
   if (missingVars.length > 0) {
     console.error("Error: Required environment variables are not set");
-    missingVars.forEach(varName => {
+    missingVars.forEach((varName) => {
       console.error(`${varName}=your_${varName.toLowerCase()}_here`);
     });
     process.exit(1);
@@ -265,14 +244,14 @@ const WALLET_DATA_FILE = "wallet_data.txt";
 
 /**
  * Get the agent's own strategy and recent feedback
- * 
+ *
  * @param agentkit - CDP agentkit instance
  * @returns Promise containing the agent's strategy and recent feedback
  */
 async function getAgentData(agentkit: CdpAgentkit): Promise<{ strategy: string; feedback: string }> {
   const provider = new JsonRpcProvider(process.env.RPC_URL);
   const contract = new Contract(process.env.AI_AGENT_REGISTRY_ADDRESS!, AI_AGENT_REGISTRY_ABI, provider);
-  
+
   try {
     // Get agent's strategy
     const strategy = await contract.getAgentStrategy(process.env.AGENT_MODEL_HASH!);
@@ -286,10 +265,10 @@ async function getAgentData(agentkit: CdpAgentkit): Promise<{ strategy: string; 
     for (const event of recentEvents) {
       const eventData = event as unknown as { args: FeedbackEvent };
       const { user, alignsWithStrategy, rating, comment, timestamp } = eventData.args;
-        const date = new Date(Number(timestamp) * 1000);
-        feedbackStr += `\n- User: ${user}\n  Rating: ${rating}/5\n  Aligns with strategy: ${alignsWithStrategy}\n  Comment: ${comment}\n  Time: ${date.toISOString()}\n`;
+      const date = new Date(Number(timestamp) * 1000);
+      feedbackStr += `\n- User: ${user}\n  Rating: ${rating}/5\n  Aligns with strategy: ${alignsWithStrategy}\n  Comment: ${comment}\n  Time: ${date.toISOString()}\n`;
     }
-    
+
     return {
       strategy,
       feedback: feedbackStr
@@ -311,7 +290,7 @@ async function getAgentData(agentkit: CdpAgentkit): Promise<{ strategy: string; 
 async function initializeAgent() {
   try {
     const llm = new ChatOpenAI({
-      model: "gpt-4o-mini",
+      model: "gpt-4o-mini"
     });
 
     let walletDataStr: string | null = null;
@@ -326,7 +305,7 @@ async function initializeAgent() {
 
     const config = {
       cdpWalletData: walletDataStr || undefined,
-      networkId: process.env.NETWORK_ID || "base-sepolia",
+      networkId: process.env.NETWORK_ID || "base-sepolia"
     };
 
     const agentkit = await CdpAgentkit.configureWithWallet(config);
@@ -387,7 +366,7 @@ async function initializeAgent() {
         
         Be concise and helpful with your responses.
         Refrain from restating your tools' descriptions unless it is explicitly requested.
-      `,
+      `
     });
 
     const exportedWallet = await agentkit.exportWallet();
@@ -412,9 +391,7 @@ async function runAutonomousMode(agent: any, config: any, interval = 10) {
 
   while (true) {
     try {
-      const thought =
-        "Be creative and do something interesting with AI agents on the blockchain. " +
-        "Choose an action or set of actions that highlights your abilities with the AI Agent Registry.";
+      const thought = "Be creative and do something interesting with AI agents on the blockchain. " + "Choose an action or set of actions that highlights your abilities with the AI Agent Registry.";
 
       const stream = await agent.stream({ messages: [new HumanMessage(thought)] }, config);
 
@@ -427,7 +404,7 @@ async function runAutonomousMode(agent: any, config: any, interval = 10) {
         console.log("-------------------");
       }
 
-      await new Promise(resolve => setTimeout(resolve, interval * 1000));
+      await new Promise((resolve) => setTimeout(resolve, interval * 1000));
     } catch (error) {
       if (error instanceof Error) {
         console.error("Error:", error.message);
@@ -448,11 +425,10 @@ async function runChatMode(agent: any, config: any) {
 
   const rl = readline.createInterface({
     input: process.stdin,
-    output: process.stdout,
+    output: process.stdout
   });
 
-  const question = (prompt: string): Promise<string> =>
-    new Promise(resolve => rl.question(prompt, resolve));
+  const question = (prompt: string): Promise<string> => new Promise((resolve) => rl.question(prompt, resolve));
 
   try {
     while (true) {
@@ -491,20 +467,17 @@ async function runChatMode(agent: any, config: any) {
 async function chooseMode(): Promise<"chat" | "auto"> {
   const rl = readline.createInterface({
     input: process.stdin,
-    output: process.stdout,
+    output: process.stdout
   });
 
-  const question = (prompt: string): Promise<string> =>
-    new Promise(resolve => rl.question(prompt, resolve));
+  const question = (prompt: string): Promise<string> => new Promise((resolve) => rl.question(prompt, resolve));
 
   while (true) {
     console.log("\nAvailable modes:");
     console.log("1. chat    - Interactive chat mode");
     console.log("2. auto    - Autonomous action mode");
 
-    const choice = (await question("\nChoose a mode (enter number or name): "))
-      .toLowerCase()
-      .trim();
+    const choice = (await question("\nChoose a mode (enter number or name): ")).toLowerCase().trim();
 
     if (choice === "1" || choice === "chat") {
       rl.close();
@@ -540,7 +513,7 @@ async function main() {
 
 if (require.main === module) {
   console.log("Starting Agent...");
-  main().catch(error => {
+  main().catch((error) => {
     console.error("Fatal error:", error);
     process.exit(1);
   });

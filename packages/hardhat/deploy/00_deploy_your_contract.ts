@@ -31,7 +31,6 @@ const deployYourContract: DeployFunction = async function (hre: HardhatRuntimeEn
 
   const musicToken = await hre.ethers.getContract<Contract>("MusicToken", deployer);
 
-
   await deploy("AIAgentRegistry", {
     from: deployer,
     // Contract constructor arguments
@@ -42,7 +41,7 @@ const deployYourContract: DeployFunction = async function (hre: HardhatRuntimeEn
     autoMine: true,
   });
 
-  // Get the deployed contract to interact with it after deploying.  
+  // Get the deployed contract to interact with it after deploying.
   const aiAgentRegistry = await hre.ethers.getContract<Contract>("AIAgentRegistry", deployer);
 
   await deploy("AgentGovernance", {
@@ -55,8 +54,7 @@ const deployYourContract: DeployFunction = async function (hre: HardhatRuntimeEn
   const agentGovernance = await hre.ethers.getContract<Contract>("AgentGovernance", deployer);
   //transfer ownership of agentRegistry to agentGovernance
   await aiAgentRegistry.transferOwnership(agentGovernance.target);
-  await musicToken.transfer('0x96F16eE794a9d4C520F2F8F9548051ec901ED909', hre.ethers.parseEther("1000"));
-
+  await musicToken.transfer("0x96F16eE794a9d4C520F2F8F9548051ec901ED909", hre.ethers.parseEther("1000"));
 };
 
 export default deployYourContract;
