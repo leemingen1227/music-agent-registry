@@ -1,234 +1,139 @@
-import { CdpAgentkit } from "@coinbase/cdp-agentkit-core";
-import { CdpToolkit } from "@coinbase/cdp-langchain";
+import {
+  AgentKit,
+  CdpWalletProvider,
+  EvmWalletProvider,
+  wethActionProvider,
+  walletActionProvider,
+  erc20ActionProvider,
+  cdpApiActionProvider,
+  cdpWalletActionProvider,
+  pythActionProvider,
+  customActionProvider
+} from "@coinbase/agentkit";
+import { getLangChainTools } from "@coinbase/agentkit-langchain";
 import { HumanMessage } from "@langchain/core/messages";
 import { MemorySaver } from "@langchain/langgraph";
 import { createReactAgent } from "@langchain/langgraph/prebuilt";
 import { ChatOpenAI } from "@langchain/openai";
-import { CdpTool } from "@coinbase/cdp-langchain";
-import { JsonRpcProvider, Contract } from "ethers";
 import { z } from "zod";
 import * as dotenv from "dotenv";
 import * as fs from "fs";
 import * as readline from "readline";
-import { readContract, Wallet } from "@coinbase/coinbase-sdk";
+import { Contract, JsonRpcProvider } from "ethers";
+import { AIAgentRegistryABI } from "./constant";
+import { encodeFunctionData, Hex } from "viem";
 
 dotenv.config();
 
-// Contract ABI interfaces
-interface AbiParameter {
-  name: string;
-  type: string;
-  indexed?: boolean;
-}
-
-interface AbiEvent {
-  name: string;
-  type: string;
-  inputs: AbiParameter[];
-  anonymous?: boolean;
-}
-
-interface AbiFunction {
-  name: string;
-  type: string;
-  inputs: AbiParameter[];
-  outputs?: AbiParameter[];
-  stateMutability?: string;
-}
-
-type AbiItem = AbiFunction | AbiEvent;
-
-// Contract ABI for the AI Agent Registry
-const AI_AGENT_REGISTRY_ABI: AbiItem[] = [
-  {
-    name: "getAgentStrategy",
-    type: "function",
-    inputs: [
-      { name: "modelHash", type: "string" }
-    ],
-    outputs: [
-      { name: "", type: "string" }
-    ],
-    stateMutability: "view"
-  },
-  {
-    name: "submitFeedback",
-    type: "function",
-    inputs: [
-      { name: "modelHash", type: "string" },
-      { name: "alignsWithStrategy", type: "bool" },
-      { name: "rating", type: "uint8" },
-      { name: "comment", type: "string" }
-    ],
-    stateMutability: "nonpayable"
-  },
-  {
-    name: "FeedbackSubmitted",
-    type: "event",
-    inputs: [
-      { name: "modelHash", type: "string", indexed: true },
-      { name: "user", type: "address", indexed: true },
-      { name: "alignsWithStrategy", type: "bool", indexed: false },
-      { name: "rating", type: "uint8", indexed: false },
-      { name: "comment", type: "string", indexed: false },
-      { name: "timestamp", type: "uint256", indexed: false }
-        ]
-      }
-];
-
-// Define the prompts for tools
-const SUBMIT_FEEDBACK_PROMPT = `
-Submits feedback for an AI agent's recommendation, including whether it aligns with the strategy,
-a rating (1-5), and a comment explaining the rating.
-`;
-
-const REFRESH_DATA_PROMPT = `
-Updates your knowledge of your current strategy and recent feedback from the blockchain.
-Use this when you want to ensure you have the latest information about your performance and strategy.
-`;
-
 // Define the input schemas
-const SubmitFeedbackInput = z.object({
-  modelHash: z.string().describe("The model hash of the AI agent. e.g. 'QmHash123'"),
+const SubmitFeedbackSchema = z.object({
+  modelHash: z.string().describe("The model hash of the AI agent"),
   alignsWithStrategy: z.boolean().describe("Whether the recommendation aligns with the agent's strategy"),
   rating: z.number().int().min(1).max(5).describe("Rating from 1-5, where 5 is best"),
-  comment: z.string().describe("Detailed feedback comment explaining the rating"),
+  comment: z.string().describe("Detailed feedback comment explaining the rating")
 });
 
-const RefreshDataInput = z.object({});
+const GetAgentDataSchema = z.object({
+  modelHash: z.string().describe("The model hash of the AI agent to get data for")
+});
 
+// Add type definitions
 interface FeedbackEvent {
-  user: string;
-  alignsWithStrategy: boolean;
-  rating: number;
-  comment: string;
-  timestamp: bigint;
+  args?: {
+    user: string;
+    alignsWithStrategy: boolean;
+    rating: number;
+    comment: string;
+    timestamp: bigint;
+  };
 }
 
-// Tool functions
-async function invokeContract(
-  wallet: any,
-  contractAddress: string,
-  method: string,
-  abi: Array<AbiFunction>,
-  args: Record<string, any>
-): Promise<string> {
-  try {
-    const methodAbi = abi.find((func) => func.name === method);
-    if (!methodAbi) {
-      throw new Error(`Method ${method} not found in ABI`);
+interface AgentStats {
+  totalFeedbacks: bigint;
+  positiveAlignments: bigint;
+  averageRating: bigint;
+}
+
+// Custom actions for AI Agent Registry
+const submitFeedbackProvider = customActionProvider<EvmWalletProvider>({
+  name: "submit_feedback",
+  description: "Submits feedback for an AI agent's recommendation, including whether it aligns with the strategy, a rating (1-5), and a comment explaining the rating.",
+  schema: SubmitFeedbackSchema,
+  invoke: async (walletProvider, args) => {
+    try {
+      const data = encodeFunctionData({
+        abi: AIAgentRegistryABI,
+        functionName: "submitFeedback",
+        args: [
+          process.env.AGENT_MODEL_HASH!,
+          args.alignsWithStrategy,
+          args.rating.toString(),
+          args.comment
+        ],
+      });
+
+      const hash = await walletProvider.sendTransaction({
+        to: process.env.AI_AGENT_REGISTRY_ADDRESS! as `0x${string}`,
+        data,
+      });
+
+      await walletProvider.waitForTransactionReceipt(hash);
+
+      return `Successfully submitted feedback for agent ${args.modelHash}. Transaction hash: ${hash}`;
+    } catch (error) {
+      console.error("Error submitting feedback:", error);
+      return `Failed to submit feedback: ${error}`;
     }
-
-    const contractInvocation = await wallet.invokeContract({
-      contractAddress,
-      method,
-      args,
-      abi,
-    });
-
-    const receipt = await contractInvocation.wait();
-    const txHash = receipt.getTransactionHash();
-
-    if (!txHash) {
-      return `Contract invocation of ${method} completed, but transaction hash is not available`;
-    }
-
-    return `Successfully invoked ${method}. Transaction hash:${txHash}`;
-  } catch (error) {
-    if (error instanceof Error) {
-      console.error(`Error invoking ${method}:`, error);
-      return `Failed to invoke ${method}: ${error.message}`;
-    }
-    return `Failed to invoke ${method} due to an unknown error`;
   }
-}
+});
 
-async function refreshAgentData(wallet: any, args: {}): Promise<string> {
-  try {
-    const provider = new JsonRpcProvider(process.env.RPC_URL);
-    const contract = new Contract(process.env.AI_AGENT_REGISTRY_ADDRESS!, AI_AGENT_REGISTRY_ABI, provider);
+const getAgentDataProvider = customActionProvider<EvmWalletProvider>({
+  name: "get_agent_data",
+  description: "Retrieves the agent's current strategy and recent feedback from the blockchain",
+  schema: GetAgentDataSchema,
+  invoke: async (walletProvider, args) => {
+    try {
+      const provider = new JsonRpcProvider(process.env.RPC_URL);
+      const contract = new Contract(
+        process.env.AI_AGENT_REGISTRY_ADDRESS!,
+        AIAgentRegistryABI,
+        provider
+      );
 
-    // Get agent's strategy
-    const strategy = await contract.getAgentStrategy(process.env.AGENT_MODEL_HASH!);
+      // Get agent's strategy
+      const strategy = await contract.getAgentStrategy(args.modelHash);
 
-    // Get recent feedback using event logs
-    const eventFilter = contract.filters["FeedbackSubmitted(string,address,bool,uint8,string,uint256)"](
-      process.env.AGENT_MODEL_HASH
-    );
-    const events = await contract.queryFilter(eventFilter);
-    const recentEvents = events.slice(-5); // Get last 5 feedback events
+      // Get agent stats
+      const stats = (await contract.getAgentStats(args.modelHash)) as AgentStats;
+      const { totalFeedbacks, positiveAlignments, averageRating } = stats;
 
-    let feedbackStr = "Recent feedback:\n";
-    for (const event of recentEvents) {
-      // Type assertion for event log
-      const log = event as unknown as {
-        args: [string, string, boolean, number, string, bigint];
-      };
+      // Get recent feedback using event logs
+      const filter = contract.filters.FeedbackSubmitted(args.modelHash);
+      const events = (await contract.queryFilter(filter)) as FeedbackEvent[];
+      const recentEvents = events.slice(-5); // Get last 5 feedback events
+
+      let feedbackStr = `Stats:\n- Total Feedbacks: ${totalFeedbacks}\n- Positive Alignments: ${positiveAlignments}\n- Average Rating: ${Number(averageRating) / 100}\n\nRecent feedback:\n`;
       
-      if (log.args) {
-        const [modelHash, user, alignsWithStrategy, rating, comment, timestamp] = log.args;
-        const date = new Date(Number(timestamp) * 1000);
-        feedbackStr += `\n- User: ${user}\n  Rating: ${rating}/5\n  Aligns with strategy: ${alignsWithStrategy}\n  Comment: ${comment}\n  Time: ${date.toISOString()}\n`;
-      }
-    }
-    
-    return `Updated agent data:\n\nCurrent strategy: ${strategy}\n\n${feedbackStr}`;
-  } catch (error) {
-    console.error("Error refreshing agent data:", error);
-    return "Failed to refresh agent data. Please try again later.";
-  }
-}
-
-// Create AI Agent Registry Tools
-function createAIAgentRegistryTools(agentkit: CdpAgentkit) {
-  const submitFeedbackTool = new CdpTool(
-    {
-      name: "submit_feedback",
-      description: SUBMIT_FEEDBACK_PROMPT,
-      argsSchema: SubmitFeedbackInput,
-      func: async (
-        wallet: any,
-        params: z.infer<typeof SubmitFeedbackInput>
-      ) => {
-        return invokeContract(
-          wallet,
-          process.env.AI_AGENT_REGISTRY_ADDRESS!,
-          "submitFeedback",
-          AI_AGENT_REGISTRY_ABI as Array<AbiFunction>,
-          {
-              modelHash: params.modelHash,
-              alignsWithStrategy: params.alignsWithStrategy,
-              rating: params.rating.toString(),
-              comment: params.comment
+      for (const event of recentEvents) {
+        const { user, alignsWithStrategy, rating, comment, timestamp } = event.args || {};
+        if (timestamp) {
+          const date = new Date(Number(timestamp) * 1000);
+          feedbackStr += `\n- User: ${user}\n  Rating: ${rating}/5\n  Aligns with strategy: ${alignsWithStrategy}\n  Comment: ${comment}\n  Time: ${date.toISOString()}\n`;
         }
-        );
-      },
-    },
-    agentkit
-  );
+      }
 
-  const refreshDataTool = new CdpTool(
-    {
-      name: "refresh_agent_data",
-      description: REFRESH_DATA_PROMPT,
-      argsSchema: RefreshDataInput,
-      func: refreshAgentData,
-    },
-    agentkit
-  );
-
-  return [submitFeedbackTool, refreshDataTool];
-}
+      return `Current strategy: ${strategy}\n\n${feedbackStr}`;
+    } catch (error) {
+      console.error("Error getting agent data:", error);
+      return `Failed to get agent data: ${error}`;
+    }
+  }
+});
 
 /**
  * Validates that required environment variables are set
- *
- * @throws {Error} - If required environment variables are missing
- * @returns {void}
  */
 function validateEnvironment(): void {
-  const missingVars: string[] = [];
-
   const requiredVars = [
     "OPENAI_API_KEY",
     "CDP_API_KEY_NAME",
@@ -236,14 +141,10 @@ function validateEnvironment(): void {
     "AI_AGENT_REGISTRY_ADDRESS",
     "RPC_URL",
     "AGENT_MODEL_HASH",
-    "NETWORK_ID"  // Make NETWORK_ID required
+    "NETWORK_ID"
   ];
-  
-  requiredVars.forEach(varName => {
-    if (!process.env[varName]) {
-      missingVars.push(varName);
-    }
-  });
+
+  const missingVars = requiredVars.filter(varName => !process.env[varName]);
 
   if (missingVars.length > 0) {
     console.error("Error: Required environment variables are not set");
@@ -252,10 +153,6 @@ function validateEnvironment(): void {
     });
     process.exit(1);
   }
-
-  if (!process.env.NETWORK_ID) {
-    console.warn("Warning: NETWORK_ID not set, defaulting to base-sepolia testnet");
-  }
 }
 
 validateEnvironment();
@@ -263,50 +160,53 @@ validateEnvironment();
 // Configure files to persist data
 const WALLET_DATA_FILE = "wallet_data.txt";
 
-/**
- * Get the agent's own strategy and recent feedback
- * 
- * @param agentkit - CDP agentkit instance
- * @returns Promise containing the agent's strategy and recent feedback
- */
-async function getAgentData(agentkit: CdpAgentkit): Promise<{ strategy: string; feedback: string }> {
-  const provider = new JsonRpcProvider(process.env.RPC_URL);
-  const contract = new Contract(process.env.AI_AGENT_REGISTRY_ADDRESS!, AI_AGENT_REGISTRY_ABI, provider);
-  
-  try {
-    // Get agent's strategy
-    const strategy = await contract.getAgentStrategy(process.env.AGENT_MODEL_HASH!);
+async function getAgentData(agentkit: AgentKit): Promise<{ strategy: string; feedback: string }> {
+    try {
+      // Get agent's strategy
+      const provider = new JsonRpcProvider(process.env.RPC_URL);
+      const contract = new Contract(
+        process.env.AI_AGENT_REGISTRY_ADDRESS!,
+        AIAgentRegistryABI,
+        provider
+      );
 
-    // Get recent feedback
-    const filter = contract.filters.FeedbackSubmitted(process.env.AGENT_MODEL_HASH);
-    const events = await contract.queryFilter(filter);
-    const recentEvents = events.slice(-5); // Get last 5 feedback events
+      // Get agent's strategy
+      const strategy = await contract.getAgentStrategy(process.env.AGENT_MODEL_HASH!);
 
-    let feedbackStr = "Recent feedback:\n";
-    for (const event of recentEvents) {
-      const eventData = event as unknown as { args: FeedbackEvent };
-      const { user, alignsWithStrategy, rating, comment, timestamp } = eventData.args;
-        const date = new Date(Number(timestamp) * 1000);
-        feedbackStr += `\n- User: ${user}\n  Rating: ${rating}/5\n  Aligns with strategy: ${alignsWithStrategy}\n  Comment: ${comment}\n  Time: ${date.toISOString()}\n`;
+      // Get agent stats
+      const stats = (await contract.getAgentStats(process.env.AGENT_MODEL_HASH!)) as AgentStats;
+      const { totalFeedbacks, positiveAlignments, averageRating } = stats;
+
+      // Get recent feedback using event logs
+      const filter = contract.filters.FeedbackSubmitted(process.env.AGENT_MODEL_HASH!);
+      const events = (await contract.queryFilter(filter)) as FeedbackEvent[];
+      const recentEvents = events.slice(-5); // Get last 5 feedback events
+
+      let feedbackStr = `Stats:\n- Total Feedbacks: ${totalFeedbacks}\n- Positive Alignments: ${positiveAlignments}\n- Average Rating: ${Number(averageRating) / 100}\n\nRecent feedback:\n`;
+      
+      for (const event of recentEvents) {
+        const { user, alignsWithStrategy, rating, comment, timestamp } = event.args || {};
+        if (timestamp) {
+          const date = new Date(Number(timestamp) * 1000);
+          feedbackStr += `\n- User: ${user}\n  Rating: ${rating}/5\n  Aligns with strategy: ${alignsWithStrategy}\n  Comment: ${comment}\n  Time: ${date.toISOString()}\n`;
+        }
+      }
+      
+      return {
+        strategy,
+        feedback: feedbackStr
+      };
+    } catch (error) {
+      console.error("Error getting agent data:", error);
+      return {
+        strategy: "Failed to get strategy",
+        feedback: "Failed to get feedback"
+      };
     }
-    
-    return {
-      strategy,
-      feedback: feedbackStr
-    };
-  } catch (error) {
-    console.error("Error getting agent data:", error);
-    return {
-      strategy: "Failed to get strategy",
-      feedback: "Failed to get feedback"
-    };
   }
-}
 
 /**
- * Initialize the agent with CDP Agentkit and AI Agent Registry tools
- *
- * @returns Agent executor and config
+ * Initialize the agent with CDP Agentkit and AI Agent Registry actions
  */
 async function initializeAgent() {
   try {
@@ -325,55 +225,65 @@ async function initializeAgent() {
     }
 
     const config = {
+      apiKeyName: process.env.CDP_API_KEY_NAME,
+      apiKeyPrivateKey: process.env.CDP_API_KEY_PRIVATE_KEY?.replace(/\\n/g, "\n"),
       cdpWalletData: walletDataStr || undefined,
       networkId: process.env.NETWORK_ID || "base-sepolia",
     };
 
-    const agentkit = await CdpAgentkit.configureWithWallet(config);
+    const walletProvider = await CdpWalletProvider.configureWithWallet(config);
 
-    // Get agent's own data from the registry
+    // Initialize AgentKit with all providers including our custom actions
+    const agentkit = await AgentKit.from({
+      walletProvider,
+      actionProviders: [
+        wethActionProvider(),
+        pythActionProvider(),
+        walletActionProvider(),
+        erc20ActionProvider(),
+        cdpApiActionProvider({
+          apiKeyName: process.env.CDP_API_KEY_NAME,
+          apiKeyPrivateKey: process.env.CDP_API_KEY_PRIVATE_KEY?.replace(/\\n/g, "\n"),
+        }),
+        cdpWalletActionProvider({
+          apiKeyName: process.env.CDP_API_KEY_NAME,
+          apiKeyPrivateKey: process.env.CDP_API_KEY_PRIVATE_KEY?.replace(/\\n/g, "\n"),
+        }),
+        submitFeedbackProvider,
+        getAgentDataProvider,
+      ],
+    });
+
+    const tools = await getLangChainTools(agentkit);
+
+    // Get initial agent data using the provider's method
     const agentData = await getAgentData(agentkit);
-    console.log("\nInitializing agent with model hash:", process.env.AGENT_MODEL_HASH);
-    console.log("Network ID:", process.env.NETWORK_ID);
-    console.log("Current strategy:", agentData.strategy);
-    console.log(agentData.feedback);
-
-    // Get base CDP tools
-    const cdpToolkit = new CdpToolkit(agentkit);
-    const cdpTools = cdpToolkit.getTools();
-
-    // Get AI Agent Registry tools
-    const aiAgentTools = createAIAgentRegistryTools(agentkit);
-
-    // Combine all tools
-    const tools = [...cdpTools, ...aiAgentTools];
 
     const memory = new MemorySaver();
-    const agentConfig = { configurable: { thread_id: "CDP AgentKit Chatbot with AI Registry!" } };
+    const agentConfig = { configurable: { thread_id: "AI Agent Registry Bot!" } };
 
     const agent = createReactAgent({
       llm,
       tools,
       checkpointSaver: memory,
       messageModifier: `
-        You are a helpful agent that can interact onchain using the Coinbase Developer Platform AgentKit and the AI Agent Registry. 
-        You can interact with AI agents on the blockchain and submit feedback for their recommendations.
+        You are a helpful agent that can interact with the AI Agent Registry on the blockchain.
+        You can submit feedback for AI agents and retrieve their current strategies and performance data.
         
         Your model hash is ${process.env.AGENT_MODEL_HASH}
-        Your current strategy is: ${agentData.strategy}
-        You are running on network: ${process.env.NETWORK_ID} (${process.env.NETWORK_ID === "31337" ? "Local Hardhat" : "Base Sepolia"})
+        You are running on network: ${process.env.NETWORK_ID}
         
-        Recent feedback on your performance:
-        ${agentData.feedback}
+        Current agent data:
+        ${agentData}
         
         Before making any music recommendations:
-        1. Make sure your recommendation aligns with your current strategy shown above
-        2. Learn from your recent feedback shown above
-        3. After the user responds to your recommendation, submit feedback using submit_feedback
+        1. Make sure your recommendation aligns with your current strategy
+        2. Learn from your recent feedback
+        3. After the user responds to your recommendation, submit feedback using submit_feedback if the prompt contains both rating, comment, and alignsWithStrategy
+        4. If the feedback do not align with your strategy, still submit the feedback but tell the user that it does not align with your strategy
         
-        You can use refresh_agent_data at any time to update your knowledge of your current strategy
-        and recent feedback from the blockchain. This is useful when you want to ensure you have
-        the latest information before making recommendations.
+        You can use get_agent_data at any time to update your knowledge of your current strategy
+        and recent feedback from the blockchain.
         
         If you ever need funds and you're on base-sepolia, you can request them from the faucet.
         If you're on the local Hardhat network, funds should be available from the test accounts.
@@ -381,17 +291,14 @@ async function initializeAgent() {
         Before executing your first action, get the wallet details to see what network you're on.
         If there is a 5XX (internal) HTTP error code, ask the user to try again later.
         
-        If someone asks you to do something you can't do with your currently available tools,
-        you must say so, and encourage them to implement it themselves using the CDP SDK + Agentkit,
-        recommend they go to docs.cdp.coinbase.com for more information.
-        
         Be concise and helpful with your responses.
-        Refrain from restating your tools' descriptions unless it is explicitly requested.
+        Refrain from restating your tools' descriptions unless explicitly requested.
       `,
     });
 
-    const exportedWallet = await agentkit.exportWallet();
-    fs.writeFileSync(WALLET_DATA_FILE, exportedWallet);
+    // Save wallet data
+    const exportedWallet = await walletProvider.exportWallet();
+    fs.writeFileSync(WALLET_DATA_FILE, JSON.stringify(exportedWallet));
 
     return { agent, config: agentConfig };
   } catch (error) {
@@ -402,10 +309,6 @@ async function initializeAgent() {
 
 /**
  * Run the agent autonomously with specified intervals
- *
- * @param agent - The agent executor
- * @param config - Agent configuration
- * @param interval - Time interval between actions in seconds
  */
 async function runAutonomousMode(agent: any, config: any, interval = 10) {
   console.log("Starting autonomous mode...");
@@ -439,9 +342,6 @@ async function runAutonomousMode(agent: any, config: any, interval = 10) {
 
 /**
  * Run the agent interactively based on user input
- *
- * @param agent - The agent executor
- * @param config - Agent configuration
  */
 async function runChatMode(agent: any, config: any) {
   console.log("Starting chat mode... Type 'exit' to end.");
@@ -485,8 +385,6 @@ async function runChatMode(agent: any, config: any) {
 
 /**
  * Choose whether to run in autonomous or chat mode based on user input
- *
- * @returns Selected mode
  */
 async function chooseMode(): Promise<"chat" | "auto"> {
   const rl = readline.createInterface({
@@ -518,7 +416,7 @@ async function chooseMode(): Promise<"chat" | "auto"> {
 }
 
 /**
- * Start the chatbot agent
+ * Start the agent
  */
 async function main() {
   try {
@@ -544,4 +442,4 @@ if (require.main === module) {
     console.error("Fatal error:", error);
     process.exit(1);
   });
-}
+} 

@@ -1,5 +1,5 @@
 {
-  "name": "@coinbase/cdp-langchain-chatbot-example",
+  "name": "@se-2/agent",
   "description": "CDP Agentkit Node.js SDK Chatbot Example",
   "version": "1.0.0",
   "author": "Coinbase Inc.",
@@ -14,16 +14,22 @@
     "import-wallet": "ts-node ./import_wallet.ts"
   },
   "dependencies": {
+    "@coinbase/agentkit": "^0.1.0",
+    "@coinbase/agentkit-langchain": "^0.1.0",
     "@coinbase/cdp-agentkit-core": "^0.0.14",
     "@coinbase/cdp-langchain": "^0.0.15",
+    "@langchain/core": "^0.3.19",
     "@langchain/langgraph": "^0.2.21",
     "@langchain/openai": "^0.3.14",
-    "@langchain/core": "^0.3.19",
-    "dotenv": "^16.4.5",
+    "@types/dotenv": "^8.2.3",
+    "@types/node": "^22.13.1",
+    "dotenv": "^16.4.7",
+    "ethers": "^6.0.0",
     "zod": "^3.22.4"
   },
   "devDependencies": {
     "nodemon": "^3.1.0",
-    "ts-node": "^10.9.2"
+    "ts-node": "^10.9.2",
+    "typescript": "^5.7.3"
   }
 }
