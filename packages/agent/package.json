@@ -7,6 +7,7 @@
   "scripts": {
     "start": "NODE_OPTIONS='--no-warnings' ts-node ./chatbot.ts",
     "dev": "nodemon ./chatbot.ts",
+    "server": "nodemon ./server.ts",
     "lint": "eslint -c .eslintrc.json *.ts",
     "lint-fix": "eslint -c .eslintrc.json *.ts --fix",
     "format": "prettier -c .prettierrc --write \"**/*.{ts,js,cjs,json,md}\"",
@@ -25,9 +26,11 @@
     "@types/node": "^22.13.1",
     "dotenv": "^16.4.7",
     "ethers": "^6.0.0",
+    "express": "^4.21.2",
     "zod": "^3.22.4"
   },
   "devDependencies": {
+    "@types/express": "^4",
     "nodemon": "^3.1.0",
     "ts-node": "^10.9.2",
     "typescript": "^5.7.3"
