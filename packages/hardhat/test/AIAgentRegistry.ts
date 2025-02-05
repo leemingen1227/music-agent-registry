@@ -8,15 +8,17 @@ describe("AIAgentRegistry", function () {
   let aiAgentRegistry: AIAgentRegistry;
   let musicToken: MusicToken;
   let deployer: HardhatEthersSigner;
+  let agent1: HardhatEthersSigner;
+  let agent2: HardhatEthersSigner;
   let user1: HardhatEthersSigner;
   let user2: HardhatEthersSigner;
   let user3: HardhatEthersSigner;
   let user4: HardhatEthersSigner;
+  let user5: HardhatEthersSigner;
 
   const INITIAL_SUPPLY = ethers.parseEther("1000000"); // 1M tokens
   const MIN_STAKE = ethers.parseEther("100"); // 100 tokens
   const CHALLENGE_PERIOD = 3 * 24 * 60 * 60; // 3 days in seconds
-  const FEEDBACK_COOLDOWN = 7 * 24 * 60 * 60; // 7 days in seconds
 
   async function deployNewInstance() {
     before("Deploying fresh contracts", async function () {
@@ -28,18 +30,25 @@ describe("AIAgentRegistry", function () {
       const AIAgentRegistryFactory = await ethers.getContractFactory("AIAgentRegistry");
       aiAgentRegistry = await AIAgentRegistryFactory.deploy(await musicToken.getAddress());
 
-      [deployer, user1, user2, user3, user4] = await ethers.getSigners();
+      [deployer, agent1, agent2, user1, user2, user3, user4, user5] = await ethers.getSigners();
 
       // Transfer tokens to users for testing
+      await musicToken.transfer(agent1.address, ethers.parseEther("10000"));
+      await musicToken.transfer(agent2.address, ethers.parseEther("10000"));
       await musicToken.transfer(user1.address, ethers.parseEther("10000"));
       await musicToken.transfer(user2.address, ethers.parseEther("10000"));
       await musicToken.transfer(user3.address, ethers.parseEther("10000"));
       await musicToken.transfer(user4.address, ethers.parseEther("10000"));
+      await musicToken.transfer(user5.address, ethers.parseEther("10000"));
+
       // Approve registry to spend tokens
+      await musicToken.connect(agent1).approve(await aiAgentRegistry.getAddress(), ethers.MaxUint256);
+      await musicToken.connect(agent2).approve(await aiAgentRegistry.getAddress(), ethers.MaxUint256);
       await musicToken.connect(user1).approve(await aiAgentRegistry.getAddress(), ethers.MaxUint256);
       await musicToken.connect(user2).approve(await aiAgentRegistry.getAddress(), ethers.MaxUint256);
       await musicToken.connect(user3).approve(await aiAgentRegistry.getAddress(), ethers.MaxUint256);
       await musicToken.connect(user4).approve(await aiAgentRegistry.getAddress(), ethers.MaxUint256);
+      await musicToken.connect(user5).approve(await aiAgentRegistry.getAddress(), ethers.MaxUint256);
     });
   }
 
@@ -53,32 +62,27 @@ describe("AIAgentRegistry", function () {
 
     it("Should allow submitting a new agent with sufficient stake", async function () {
       console.log("\t", "📝 Submitting new agent...");
-      const tx = await aiAgentRegistry.connect(user1).submitAgent(
-        "modelHash1",
-        "metadata1",
-        "strategy1",
-        MIN_STAKE
-      );
+      const tx = await aiAgentRegistry.connect(agent1).submitAgent("metadata1", "strategy1", MIN_STAKE);
 
-      const agent = await aiAgentRegistry.aiAgents("modelHash1");
+      const agent = await aiAgentRegistry.aiAgents(agent1.address);
       console.log("\t", "✅ Verifying agent details...");
-      expect(agent.owner).to.equal(user1.address);
       expect(agent.isListed).to.be.true;
+      expect(agent.metadata).to.equal("metadata1");
+      expect(await aiAgentRegistry.agentStrategies(agent1.address)).to.equal("strategy1");
 
       await expect(tx)
         .to.emit(aiAgentRegistry, "AgentSubmitted")
-        .withArgs("modelHash1", user1.address, MIN_STAKE, "metadata1");
+        .withArgs(agent1.address, MIN_STAKE, "metadata1", "strategy1");
     });
 
     it("Should fail when stake is insufficient", async function () {
       console.log("\t", "❌ Testing insufficient stake...");
       await expect(
-        aiAgentRegistry.connect(user1).submitAgent(
-          "modelHash2",
+        aiAgentRegistry.connect(agent2).submitAgent(
           "metadata2",
           "strategy2",
-          ethers.parseEther("99") // Less than MIN_STAKE
-        )
+          ethers.parseEther("99"), // Less than MIN_STAKE
+        ),
       ).to.be.revertedWith("Insufficient stake");
     });
   });
@@ -88,116 +92,130 @@ describe("AIAgentRegistry", function () {
 
     before(async function () {
       console.log("\t", "🎯 Setting up test agent...");
-      await aiAgentRegistry.connect(user1).submitAgent(
-        "modelHash1",
-        "metadata1",
-        "strategy1",
-        MIN_STAKE
-      );
+      await aiAgentRegistry.connect(agent1).submitAgent("metadata1", "strategy1", MIN_STAKE);
     });
 
-    it("Should allow challenging a listed agent", async function () {
+    it("Should allow user to challenge a listed agent", async function () {
       console.log("\t", "🤺 Challenging agent...");
-      const tx = await aiAgentRegistry.connect(user2).challengeAgent(
-        "modelHash1",
-        MIN_STAKE
-      );
+      const tx = await aiAgentRegistry.connect(user1).challengeAgent(agent1.address, MIN_STAKE);
 
-      const agent = await aiAgentRegistry.aiAgents("modelHash1");
-      expect(agent.challenger).to.equal(user2.address);
+      const agent = await aiAgentRegistry.aiAgents(agent1.address);
+      expect(agent.challenger).to.equal(user1.address);
       expect(agent.challengeStake).to.equal(MIN_STAKE);
       expect(agent.challengeEndTime).to.be.gt(0);
 
-      await expect(tx)
-        .to.emit(aiAgentRegistry, "AgentChallenged")
-        .withArgs("modelHash1", user2.address, MIN_STAKE);
+      await expect(tx).to.emit(aiAgentRegistry, "AgentChallenged").withArgs(agent1.address, user1.address, MIN_STAKE);
 
       // Verify can't challenge again while challenge is active
-      await expect(
-        aiAgentRegistry.connect(user3).challengeAgent("modelHash1", MIN_STAKE)
-      ).to.be.revertedWith("Already challenged");
+      await expect(aiAgentRegistry.connect(user2).challengeAgent(agent1.address, MIN_STAKE)).to.be.revertedWith(
+        "Already challenged",
+      );
     });
 
-    it("Should allow voting during challenge period", async function () {
-      console.log("\t", "🗳️ Testing voting mechanism...");
-      
-      const tx = await aiAgentRegistry.connect(user3).vote("modelHash1", false, MIN_STAKE);
+    it("Should allow multiple users to vote during challenge period", async function () {
+      console.log("\t", "🗳️ Testing voting mechanism with multiple users...");
 
-      const agent = await aiAgentRegistry.aiAgents("modelHash1");
-      expect(agent.votesAgainst).to.equal(MIN_STAKE);
-      expect(agent.totalVoterStakes).to.equal(MIN_STAKE);
+      // Users voting against
+      const voteAgainst1 = await aiAgentRegistry.connect(user2).vote(agent1.address, false, MIN_STAKE);
+      const voteAgainst2 = await aiAgentRegistry.connect(user3).vote(agent1.address, false, MIN_STAKE * 2n);
 
-      await expect(tx)
+      // Users voting for
+      const voteFor1 = await aiAgentRegistry.connect(user4).vote(agent1.address, true, MIN_STAKE);
+      const voteFor2 = await aiAgentRegistry.connect(user5).vote(agent1.address, true, MIN_STAKE * 3n);
+
+      const agent = await aiAgentRegistry.aiAgents(agent1.address);
+      expect(agent.votesAgainst).to.equal(MIN_STAKE * 3n); // 1x + 2x stakes
+      expect(agent.votesFor).to.equal(MIN_STAKE * 4n); // 1x + 3x stakes
+      expect(agent.totalVoterStakes).to.equal(MIN_STAKE * 7n); // Total 7x stakes
+
+      // Verify vote events
+      await expect(voteAgainst1)
         .to.emit(aiAgentRegistry, "VoteCast")
-        .withArgs("modelHash1", user3.address, false, MIN_STAKE);
+        .withArgs(agent1.address, user2.address, false, MIN_STAKE);
+      await expect(voteAgainst2)
+        .to.emit(aiAgentRegistry, "VoteCast")
+        .withArgs(agent1.address, user3.address, false, MIN_STAKE * 2n);
+      await expect(voteFor1)
+        .to.emit(aiAgentRegistry, "VoteCast")
+        .withArgs(agent1.address, user4.address, true, MIN_STAKE);
+      await expect(voteFor2)
+        .to.emit(aiAgentRegistry, "VoteCast")
+        .withArgs(agent1.address, user5.address, true, MIN_STAKE * 3n);
 
       // Verify same user can't vote twice
-      await expect(
-        aiAgentRegistry.connect(user3).vote("modelHash1", false, MIN_STAKE)
-      ).to.be.revertedWith("Already voted");
+      await expect(aiAgentRegistry.connect(user2).vote(agent1.address, false, MIN_STAKE)).to.be.revertedWith(
+        "Already voted",
+      );
     });
 
-    it("Should track voting stakes correctly", async function () {
-      console.log("\t", "💰 Testing vote stake tracking...");
-      
-      // Another user votes against
-      const tx = await aiAgentRegistry.connect(user1).vote("modelHash1", false, MIN_STAKE);
-      const tx2 = await aiAgentRegistry.connect(user4).vote("modelHash1", true, MIN_STAKE);
-      
-      const agent = await aiAgentRegistry.aiAgents("modelHash1");
-      expect(agent.votesAgainst).to.equal(MIN_STAKE * 2n);
-      expect(agent.votesFor).to.equal(MIN_STAKE);
-      expect(agent.totalVoterStakes).to.equal(MIN_STAKE * 3n);
-      
-      const voterStake = await aiAgentRegistry.voterStakes("modelHash1", user1.address);
-      expect(voterStake).to.equal(MIN_STAKE);
+    it("Should track voting stakes correctly for multiple users", async function () {
+      console.log("\t", "💰 Testing vote stake tracking for multiple users...");
+
+      // Verify individual stakes
+      expect(await aiAgentRegistry.voterStakes(agent1.address, user2.address)).to.equal(MIN_STAKE);
+      expect(await aiAgentRegistry.voterStakes(agent1.address, user3.address)).to.equal(MIN_STAKE * 2n);
+      expect(await aiAgentRegistry.voterStakes(agent1.address, user4.address)).to.equal(MIN_STAKE);
+      expect(await aiAgentRegistry.voterStakes(agent1.address, user5.address)).to.equal(MIN_STAKE * 3n);
+
+      // Verify all users have voted
+      expect(await aiAgentRegistry.hasVoted(agent1.address, user2.address)).to.be.true;
+      expect(await aiAgentRegistry.hasVoted(agent1.address, user3.address)).to.be.true;
+      expect(await aiAgentRegistry.hasVoted(agent1.address, user4.address)).to.be.true;
+      expect(await aiAgentRegistry.hasVoted(agent1.address, user5.address)).to.be.true;
     });
 
     it("Should distribute rewards correctly after challenge resolution", async function () {
-      console.log("\t", "💸 Testing reward distribution...");
-      
+      console.log("\t", "💸 Testing reward distribution for multiple users...");
+
       // Get initial balances
-      const challenger_balance_before = await musicToken.balanceOf(user2.address);
-      const voter1_balance_before = await musicToken.balanceOf(user1.address);
-      const voter2_balance_before = await musicToken.balanceOf(user3.address);
-      const voter4_balance_before = await musicToken.balanceOf(user4.address);
+      const challenger_balance_before = await musicToken.balanceOf(user1.address);
+      const voter_balances_before = await Promise.all([
+        musicToken.balanceOf(user2.address),
+        musicToken.balanceOf(user3.address),
+        musicToken.balanceOf(user4.address),
+        musicToken.balanceOf(user5.address),
+      ]);
+
       // Fast forward time to end challenge period
       await ethers.provider.send("evm_increaseTime", [CHALLENGE_PERIOD + 1]);
       await ethers.provider.send("evm_mine", []);
 
       // Resolve challenge
-      const tx = await aiAgentRegistry.resolveChallenge("modelHash1");
+      const tx = await aiAgentRegistry.resolveChallenge(agent1.address);
 
       // Get final balances
-      const challenger_balance_after = await musicToken.balanceOf(user2.address);
-      const voter1_balance_after = await musicToken.balanceOf(user1.address);
-      const voter2_balance_after = await musicToken.balanceOf(user3.address);
-      const voter4_balance_after = await musicToken.balanceOf(user4.address);
+      const challenger_balance_after = await musicToken.balanceOf(user1.address);
+      const voter_balances_after = await Promise.all([
+        musicToken.balanceOf(user2.address),
+        musicToken.balanceOf(user3.address),
+        musicToken.balanceOf(user4.address),
+        musicToken.balanceOf(user5.address),
+      ]);
+
       // Calculate expected rewards
       const totalStake = MIN_STAKE * 2n; // agent stake + challenger stake
       const winnerReward = (totalStake * 70n) / 100n; // 70% to winner
       const voterRewards = totalStake - winnerReward; // 30% to voters
 
-      // Verify challenger reward
-      console.log("\t", "🏆 Verifying challenger reward...");
-      expect(challenger_balance_after - challenger_balance_before).to.equal(winnerReward);
+      // Since votesFor (4x) > votesAgainst (3x), the agent wins
+      // Verify challenger doesn't get reward
+      expect(challenger_balance_after).to.equal(challenger_balance_before);
 
-      // Verify voter rewards
-      console.log("\t", "🎁 Verifying voter rewards...");
-      const voter1_reward = voter1_balance_after - voter1_balance_before;
-      const voter2_reward = voter2_balance_after - voter2_balance_before;
-      const voter4_reward = voter4_balance_after - voter4_balance_before;
-    //   expect(voter4_reward).to.equal(0);
-      expect(voter1_reward + voter2_reward).to.equal(voterRewards);
+      // Calculate voter rewards
+      const voter_rewards = voter_balances_after.map((after, i) => after - voter_balances_before[i]);
+      const total_voter_rewards = voter_rewards.reduce((a, b) => a + b, 0n);
+
+      // Verify total rewards distributed
+      expect(total_voter_rewards).to.equal(voterRewards);
 
       // Verify challenge resolution event
       await expect(tx)
         .to.emit(aiAgentRegistry, "ChallengeResolved")
-        .withArgs("modelHash1", false, winnerReward, voterRewards);
+        .withArgs(agent1.address, true, winnerReward, voterRewards);
 
       // Verify agent state after resolution
-      const agent = await aiAgentRegistry.aiAgents("modelHash1");
-      expect(agent.isListed).to.be.false;
+      const agent = await aiAgentRegistry.aiAgents(agent1.address);
+      expect(agent.isListed).to.be.true; // Agent won the challenge
       expect(agent.challengeEndTime).to.equal(0);
       expect(agent.challenger).to.equal(ethers.ZeroAddress);
       expect(agent.votesFor).to.equal(0);
@@ -205,23 +223,16 @@ describe("AIAgentRegistry", function () {
       expect(agent.totalVoterStakes).to.equal(0);
     });
 
-    it("Should clear voter data after challenge resolution", async function () {
-      console.log("\t", "🧹 Verifying voter data cleanup...");
-      
-      // Check voter data is cleared
-      const voter1_stake = await aiAgentRegistry.voterStakes("modelHash1", user1.address);
-      const voter2_stake = await aiAgentRegistry.voterStakes("modelHash1", user3.address);
-      const voter4_stake = await aiAgentRegistry.voterStakes("modelHash1", user4.address);
-      const voter1_hasVoted = await aiAgentRegistry.hasVoted("modelHash1", user1.address);
-      const voter2_hasVoted = await aiAgentRegistry.hasVoted("modelHash1", user3.address);
-      const voter4_hasVoted = await aiAgentRegistry.hasVoted("modelHash1", user4.address);
+    it("Should clear all voter data after challenge resolution", async function () {
+      console.log("\t", "🧹 Verifying voter data cleanup for all users...");
 
-      expect(voter1_stake).to.equal(0);
-      expect(voter2_stake).to.equal(0);
-      expect(voter4_stake).to.equal(0);
-      expect(voter1_hasVoted).to.be.false;
-      expect(voter2_hasVoted).to.be.false;
-      expect(voter4_hasVoted).to.be.false;
+      // Check voter data is cleared for all users
+      for (const user of [user2, user3, user4, user5]) {
+        const stake = await aiAgentRegistry.voterStakes(agent1.address, user.address);
+        const hasVoted = await aiAgentRegistry.hasVoted(agent1.address, user.address);
+        expect(stake).to.equal(0);
+        expect(hasVoted).to.be.false;
+      }
     });
   });
 
@@ -230,130 +241,61 @@ describe("AIAgentRegistry", function () {
 
     before(async function () {
       console.log("\t", "🎯 Setting up test agent...");
-      await aiAgentRegistry.connect(user1).submitAgent(
-        "modelHash1",
-        "metadata1",
-        "strategy1",
-        MIN_STAKE
-      );
+      await aiAgentRegistry.connect(agent1).submitAgent("metadata1", "strategy1", MIN_STAKE);
     });
 
     it("Should record feedback correctly and emit event", async function () {
       console.log("\t", "📊 Submitting feedback...");
       const comment = "Great music recommendations!";
-      
-      const tx = await aiAgentRegistry.connect(user2).submitFeedback(
-        "modelHash1",
-        true,
-        5,
-        comment
-      );
+
+      const tx = await aiAgentRegistry.connect(agent1).submitFeedback(true, 5, comment);
 
       // Check on-chain stats
-      const stats = await aiAgentRegistry.getAgentStats("modelHash1");
+      const stats = await aiAgentRegistry.getAgentStats(agent1.address);
       console.log("\t", "📈 Verifying feedback stats...");
       expect(stats.totalFeedbacks).to.equal(1);
       expect(stats.positiveAlignments).to.equal(1);
       expect(stats.averageRating).to.equal(500); // 5.00 scaled by 100
 
       // Verify event emission
-      await expect(tx)
-        .to.emit(aiAgentRegistry, "FeedbackSubmitted")
-        .withArgs(
-          "modelHash1",
-          user2.address,
-          true,
-          5,
-          comment,
-          anyValue // timestamp
-        );
+      await expect(tx).to.emit(aiAgentRegistry, "FeedbackSubmitted").withArgs(
+        agent1.address,
+        true,
+        5,
+        comment,
+        anyValue, // timestamp
+      );
     });
 
     it("Should calculate average rating correctly with multiple feedbacks", async function () {
       console.log("\t", "🧮 Testing average calculation...");
-      
-      // Fast forward time to bypass cooldown
-      await ethers.provider.send("evm_increaseTime", [FEEDBACK_COOLDOWN + 1]);
-      await ethers.provider.send("evm_mine", []);
 
       // Submit second feedback with different rating
-      await aiAgentRegistry.connect(user3).submitFeedback(
-        "modelHash1",
-        false,
-        3,
-        "Could be better with more variety"
-      );
+      await aiAgentRegistry.connect(agent1).submitFeedback(false, 3, "Could be better with more variety");
 
-      const stats = await aiAgentRegistry.getAgentStats("modelHash1");
+      const stats = await aiAgentRegistry.getAgentStats(agent1.address);
       expect(stats.totalFeedbacks).to.equal(2);
       expect(stats.positiveAlignments).to.equal(1);
       expect(stats.averageRating).to.equal(400); // (5 + 3) / 2 * 100 = 400
     });
 
-    it("Should enforce feedback cooldown", async function () {
-      console.log("\t", "⏲️ Testing feedback cooldown...");
-      
-      await expect(
-        aiAgentRegistry.connect(user3).submitFeedback(
-          "modelHash1",
-          true,
-          4,
-          "Another feedback"
-        )
-      ).to.be.revertedWith("Please wait before submitting another feedback");
-    });
-
-    it("Should handle multiple feedbacks and maintain accurate stats", async function () {
-      console.log("\t", "📊 Testing multiple feedback handling...");
-      
-      await ethers.provider.send("evm_increaseTime", [FEEDBACK_COOLDOWN + 1]);
-      await ethers.provider.send("evm_mine", []);
-
-      await aiAgentRegistry.connect(user4).submitFeedback(
-        "modelHash1",
-        true,
-        4,
-        "Good recommendations overall"
-      );
-
-      const stats = await aiAgentRegistry.getAgentStats("modelHash1");
-      expect(stats.totalFeedbacks).to.equal(3);
-      expect(stats.positiveAlignments).to.equal(2);
-      expect(stats.averageRating).to.equal(400);
-    });
-
     it("Should reject invalid rating values", async function () {
       console.log("\t", "❌ Testing invalid ratings...");
-      
-      await expect(
-        aiAgentRegistry.connect(user1).submitFeedback(
-          "modelHash1",
-          true,
-          0,
-          "QmFeedback5"
-        )
-      ).to.be.revertedWith("Invalid rating range");
 
-      await expect(
-        aiAgentRegistry.connect(user1).submitFeedback(
-          "modelHash1",
-          true,
-          6,
-          "QmFeedback6"
-        )
-      ).to.be.revertedWith("Invalid rating range");
+      await expect(aiAgentRegistry.connect(agent1).submitFeedback(true, 0, "Invalid rating")).to.be.revertedWith(
+        "Invalid rating range",
+      );
+
+      await expect(aiAgentRegistry.connect(agent1).submitFeedback(true, 6, "Invalid rating")).to.be.revertedWith(
+        "Invalid rating range",
+      );
     });
 
     it("Should reject feedback for unlisted agents", async function () {
       console.log("\t", "🚫 Testing feedback for unlisted agent...");
-      
+
       await expect(
-        aiAgentRegistry.connect(user1).submitFeedback(
-          "nonexistentAgent",
-          true,
-          5,
-          "QmFeedback7"
-        )
+        aiAgentRegistry.connect(agent2).submitFeedback(true, 5, "Feedback from unlisted agent"),
       ).to.be.revertedWith("Agent not listed");
     });
   });
@@ -362,35 +304,38 @@ describe("AIAgentRegistry", function () {
     deployNewInstance();
 
     before(async function () {
-      await aiAgentRegistry.connect(user1).submitAgent(
-        "modelHash1",
-        "metadata1",
-        "strategy1",
-        MIN_STAKE
-      );
+      await aiAgentRegistry.connect(agent1).submitAgent("metadata1", "strategy1", MIN_STAKE);
+    });
+
+    it("Should allow agent to update their own strategy", async function () {
+      console.log("\t", "🔄 Updating strategy...");
+      const tx = await aiAgentRegistry.connect(agent1).updateAgentStrategy(agent1.address, "newStrategy");
+
+      expect(await aiAgentRegistry.agentStrategies(agent1.address)).to.equal("newStrategy");
+
+      await expect(tx).to.emit(aiAgentRegistry, "StrategyUpdated").withArgs(agent1.address, "newStrategy");
     });
 
     it("Should allow governance to update strategy", async function () {
-      console.log("\t", "🔄 Updating strategy...");
-      const tx = await aiAgentRegistry.updateAgentStrategy("modelHash1", "newStrategy");
+      console.log("\t", "🔄 Governance updating strategy...");
+      const tx = await aiAgentRegistry.connect(deployer).updateAgentStrategy(agent1.address, "governanceStrategy");
 
-      expect(await aiAgentRegistry.agentStrategies("modelHash1")).to.equal("newStrategy");
+      expect(await aiAgentRegistry.agentStrategies(agent1.address)).to.equal("governanceStrategy");
 
-      await expect(tx)
-        .to.emit(aiAgentRegistry, "StrategyUpdated")
-        .withArgs("modelHash1", "newStrategy");
+      await expect(tx).to.emit(aiAgentRegistry, "StrategyUpdated").withArgs(agent1.address, "governanceStrategy");
     });
 
-    it("Should prevent non-governance from updating strategy", async function () {
+    it("Should prevent other addresses from updating strategy", async function () {
       console.log("\t", "🚫 Testing unauthorized strategy update...");
       await expect(
-        aiAgentRegistry.connect(user1).updateAgentStrategy("modelHash1", "newStrategy")
-      ).to.be.revertedWith("Only governance can update strategy");
+        aiAgentRegistry.connect(agent2).updateAgentStrategy(agent1.address, "newStrategy"),
+      ).to.be.revertedWith("Only agent or governance can update strategy");
     });
   });
 });
 
 async function getLatestBlockTimestamp(): Promise<number> {
   const latestBlock = await ethers.provider.getBlock("latest");
+  if (!latestBlock) throw new Error("Failed to get latest block");
   return latestBlock.timestamp;
 }

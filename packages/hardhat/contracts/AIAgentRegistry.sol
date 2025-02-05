@@ -20,8 +20,6 @@ contract AIAgentRegistry is Ownable, ReentrancyGuard {
     
     // Simplified on-chain feedback stats
     struct AIAgent {
-        address owner;
-        string modelHash;
         string metadata;        // IPFS hash containing agent details
         uint256 stake;
         bool isListed;
@@ -33,7 +31,6 @@ contract AIAgentRegistry is Ownable, ReentrancyGuard {
         uint256 totalVoterStakes;
         address[] supportVoters;
         address[] againstVoters;
-        string initialStrategy;  // IPFS hash of initial strategy
         // Simplified feedback tracking
         uint256 totalRatingPoints;  // Sum of all ratings (1-5)
         uint256 totalFeedbacks;     // Count of feedbacks
@@ -42,56 +39,50 @@ contract AIAgentRegistry is Ownable, ReentrancyGuard {
     
     // Feedback event with detailed data
     event FeedbackSubmitted(
-        string indexed modelHash,
-        address indexed user,
+        address indexed modelAddress,
         bool alignsWithStrategy,
         uint8 rating,
         string comment,        // Direct comment text
         uint256 timestamp
     );
 
-    mapping(string => AIAgent) public aiAgents;
-    mapping(string => mapping(address => bool)) public hasVoted;
-    mapping(string => mapping(address => uint256)) public voterStakes;
-    mapping(string => string) public agentStrategies; // modelHash => IPFS strategy hash
-    mapping(string => mapping(address => uint256)) public lastFeedbackTime;
+    mapping(address => AIAgent) public aiAgents;
+    mapping(address => mapping(address => bool)) public hasVoted;
+    mapping(address => mapping(address => uint256)) public voterStakes;
+    mapping(address => string) public agentStrategies; // modelAddress => strategy string
+    mapping(address => mapping(address => uint256)) public lastFeedbackTime;
     
     // Updated events
-    event AgentSubmitted(string modelHash, address owner, uint256 stake, string metadata);
-    event AgentChallenged(string indexed modelHash, address challenger, uint256 stake);
-    event VoteCast(string indexed modelHash, address voter, bool support, uint256 stake);
-    event ChallengeResolved(string indexed modelHash, bool accepted, uint256 winnerReward, uint256 voterRewards);
-    event StakeIncreased(string indexed modelHash, uint256 additionalStake);
+    event AgentSubmitted(address modelAddress, uint256 stake, string metadata, string strategy);
+    event AgentChallenged(address indexed modelAddress, address challenger, uint256 stake);
+    event VoteCast(address indexed modelAddress, address voter, bool support, uint256 stake);
+    event ChallengeResolved(address indexed modelAddress, bool accepted, uint256 winnerReward, uint256 voterRewards);
+    event StakeIncreased(address indexed modelAddress, uint256 additionalStake);
     event StrategyUpdated(
-        string indexed modelHash,
-        string newStrategyHash
+        address indexed modelAddress,
+        string newStrategy
     );
-
-    uint256 public constant FEEDBACK_COOLDOWN = 1 days;  // Minimum time between feedbacks from same user
     
     constructor(address _musicToken) {
         musicToken = IERC20(_musicToken);
     }
     
     function submitAgent(
-        string memory modelHash, 
         string memory metadata, 
-        string memory initialStrategy,
+        string memory strategy,
         uint256 stake
     ) 
         external 
         nonReentrant 
     {
         require(stake >= MIN_STAKE_AMOUNT, "Insufficient stake");
-        require(!aiAgents[modelHash].isListed, "Agent already exists");
+        require(!aiAgents[msg.sender].isListed, "Agent already exists");
         require(bytes(metadata).length > 0, "Metadata required");
-        require(bytes(initialStrategy).length > 0, "Initial strategy required");
+        require(bytes(strategy).length > 0, "Strategy required");
         
         musicToken.transferFrom(msg.sender, address(this), stake);
         
-        aiAgents[modelHash] = AIAgent({
-            owner: msg.sender,
-            modelHash: modelHash,
+        aiAgents[msg.sender] = AIAgent({
             metadata: metadata,
             stake: stake,
             isListed: true,
@@ -103,45 +94,43 @@ contract AIAgentRegistry is Ownable, ReentrancyGuard {
             totalVoterStakes: 0,
             supportVoters: new address[](0),
             againstVoters: new address[](0),
-            initialStrategy: initialStrategy,
             totalRatingPoints: 0,
             totalFeedbacks: 0,
             positiveAlignments: 0
         });
 
-        agentStrategies[modelHash] = initialStrategy;
-        console.log("Agent submitted: %s", modelHash);
-        console.log("Initial strategy: %s", initialStrategy);
-        emit AgentSubmitted(modelHash, msg.sender, stake, metadata);
-        emit StrategyUpdated(modelHash, initialStrategy);
+        agentStrategies[msg.sender] = strategy;
+        console.log("Agent submitted by address: %s", msg.sender);
+        console.log("Strategy: %s", strategy);
+        emit AgentSubmitted(msg.sender, stake, metadata, strategy);
     }
     
-    function challengeAgent(string memory modelHash, uint256 stake) 
+    function challengeAgent(address modelAddress, uint256 stake) 
         external 
         nonReentrant 
     {
-        require(aiAgents[modelHash].isListed, "Agent not listed");
+        require(aiAgents[modelAddress].isListed, "Agent not listed");
         require(stake >= MIN_STAKE_AMOUNT, "Insufficient challenge stake");
-        require(aiAgents[modelHash].challengeEndTime == 0, "Already challenged");
+        require(aiAgents[modelAddress].challengeEndTime == 0, "Already challenged");
         
         musicToken.transferFrom(msg.sender, address(this), stake);
         
-        AIAgent storage agent = aiAgents[modelHash];
+        AIAgent storage agent = aiAgents[modelAddress];
         agent.challenger = msg.sender;
         agent.challengeStake = stake;
         agent.challengeEndTime = block.timestamp + CHALLENGE_PERIOD;
         
-        emit AgentChallenged(modelHash, msg.sender, stake);
+        emit AgentChallenged(modelAddress, msg.sender, stake);
     }
     
-    function vote(string memory modelHash, bool support, uint256 stake) 
+    function vote(address modelAddress, bool support, uint256 stake) 
         external 
         nonReentrant 
     {
-        AIAgent storage agent = aiAgents[modelHash];
+        AIAgent storage agent = aiAgents[modelAddress];
         require(agent.challengeEndTime > 0, "No active challenge");
         require(block.timestamp < agent.challengeEndTime, "Challenge period ended");
-        require(!hasVoted[modelHash][msg.sender], "Already voted");
+        require(!hasVoted[modelAddress][msg.sender], "Already voted");
         require(stake > 0, "Stake must be positive");
         
         musicToken.transferFrom(msg.sender, address(this), stake);
@@ -155,17 +144,17 @@ contract AIAgentRegistry is Ownable, ReentrancyGuard {
         }
         
         agent.totalVoterStakes += stake;
-        hasVoted[modelHash][msg.sender] = true;
-        voterStakes[modelHash][msg.sender] = stake;
+        hasVoted[modelAddress][msg.sender] = true;
+        voterStakes[modelAddress][msg.sender] = stake;
         
-        emit VoteCast(modelHash, msg.sender, support, stake);
+        emit VoteCast(modelAddress, msg.sender, support, stake);
     }
     
-    function resolveChallenge(string memory modelHash) 
+    function resolveChallenge(address modelAddress) 
         external 
         nonReentrant 
     {
-        AIAgent storage agent = aiAgents[modelHash];
+        AIAgent storage agent = aiAgents[modelAddress];
         require(agent.challengeEndTime > 0, "No challenge exists");
         require(block.timestamp >= agent.challengeEndTime, "Challenge period not ended");
         
@@ -177,19 +166,19 @@ contract AIAgentRegistry is Ownable, ReentrancyGuard {
         // Distribute rewards
         if (challengeSucceeded) {
             musicToken.transfer(agent.challenger, winnerReward);
-            distributeVoterRewards(modelHash, false, voterRewards);
+            distributeVoterRewards(modelAddress, false, voterRewards);
             agent.isListed = false;
         } else {
-            musicToken.transfer(agent.owner, winnerReward);
-            distributeVoterRewards(modelHash, true, voterRewards);
+            musicToken.transfer(modelAddress, winnerReward);
+            distributeVoterRewards(modelAddress, true, voterRewards);
         }
         
         // Clear all voter data
         for (uint i = 0; i < agent.supportVoters.length; i++) {
-            clearVoterData(modelHash, agent.supportVoters[i]);
+            clearVoterData(modelAddress, agent.supportVoters[i]);
         }
         for (uint i = 0; i < agent.againstVoters.length; i++) {
-            clearVoterData(modelHash, agent.againstVoters[i]);
+            clearVoterData(modelAddress, agent.againstVoters[i]);
         }
         
         // Reset challenge data
@@ -202,28 +191,27 @@ contract AIAgentRegistry is Ownable, ReentrancyGuard {
         delete agent.supportVoters;
         delete agent.againstVoters;
         
-        emit ChallengeResolved(modelHash, !challengeSucceeded, winnerReward, voterRewards);
+        emit ChallengeResolved(modelAddress, !challengeSucceeded, winnerReward, voterRewards);
     }
     
-    function increaseStake(string memory modelHash, uint256 additionalStake) 
+    function increaseStake(uint256 additionalStake) 
         external 
         nonReentrant 
     {
-        AIAgent storage agent = aiAgents[modelHash];
+        AIAgent storage agent = aiAgents[msg.sender];
         require(agent.isListed, "Agent not listed");
-        require(msg.sender == agent.owner, "Not agent owner");
         require(agent.challengeEndTime == 0, "Cannot increase stake during challenge");
         
         musicToken.transferFrom(msg.sender, address(this), additionalStake);
         agent.stake += additionalStake;
         
-        emit StakeIncreased(modelHash, additionalStake);
+        emit StakeIncreased(msg.sender, additionalStake);
     }
     
-    function distributeVoterRewards(string memory modelHash, bool forWinners, uint256 rewardPool) 
+    function distributeVoterRewards(address modelAddress, bool forWinners, uint256 rewardPool) 
         private 
     {
-        AIAgent storage agent = aiAgents[modelHash];
+        AIAgent storage agent = aiAgents[modelAddress];
         uint256 winningVotes = forWinners ? agent.votesFor : agent.votesAgainst;
         address[] storage voters = forWinners ? agent.supportVoters : agent.againstVoters;
         
@@ -231,7 +219,7 @@ contract AIAgentRegistry is Ownable, ReentrancyGuard {
             // For each voter, calculate their proportion of winning votes
             for (uint i = 0; i < voters.length; i++) {
                 address voter = voters[i];
-                uint256 voterStake = voterStakes[modelHash][voter];
+                uint256 voterStake = voterStakes[modelAddress][voter];
                 
                 // Calculate reward: (voter's stake / total winning votes) * reward pool
                 uint256 reward = (voterStake * rewardPool) / winningVotes;
@@ -243,11 +231,10 @@ contract AIAgentRegistry is Ownable, ReentrancyGuard {
     }
     
     // View functions
-    function getAgent(string memory modelHash) 
+    function getAgent(address modelAddress) 
         external 
         view 
         returns (
-            address owner,
             string memory metadata,
             uint256 stake,
             bool isListed,
@@ -258,9 +245,8 @@ contract AIAgentRegistry is Ownable, ReentrancyGuard {
             uint256 votesAgainst
         ) 
     {
-        AIAgent storage agent = aiAgents[modelHash];
+        AIAgent storage agent = aiAgents[modelAddress];
         return (
-            agent.owner,
             agent.metadata,
             agent.stake,
             agent.isListed,
@@ -273,13 +259,12 @@ contract AIAgentRegistry is Ownable, ReentrancyGuard {
     }
 
     // Add new function to help clear voter data
-    function clearVoterData(string memory modelHash, address voter) private {
-        hasVoted[modelHash][voter] = false;
-        voterStakes[modelHash][voter] = 0;
+    function clearVoterData(address modelAddress, address voter) private {
+        hasVoted[modelAddress][voter] = false;
+        voterStakes[modelAddress][voter] = 0;
     }
 
     function submitFeedback(
-        string memory modelHash,
         bool alignsWithStrategy,
         uint8 rating,
         string memory comment    // Direct comment text
@@ -287,14 +272,10 @@ contract AIAgentRegistry is Ownable, ReentrancyGuard {
         external 
         nonReentrant 
     {
-        require(aiAgents[modelHash].isListed, "Agent not listed");
+        require(aiAgents[msg.sender].isListed, "Agent not listed");
         require(rating >= 1 && rating <= 5, "Invalid rating range");
-        require(
-            block.timestamp >= lastFeedbackTime[modelHash][msg.sender] + FEEDBACK_COOLDOWN,
-            "Please wait before submitting another feedback"
-        );
         
-        AIAgent storage agent = aiAgents[modelHash];
+        AIAgent storage agent = aiAgents[msg.sender];
         
         // Update minimal on-chain stats
         agent.totalFeedbacks++;
@@ -302,12 +283,9 @@ contract AIAgentRegistry is Ownable, ReentrancyGuard {
         if (alignsWithStrategy) {
             agent.positiveAlignments++;
         }
-        
-        lastFeedbackTime[modelHash][msg.sender] = block.timestamp;
-        
+                
         // Emit event with full feedback data including direct comment
         emit FeedbackSubmitted(
-            modelHash,
             msg.sender,
             alignsWithStrategy,
             rating,
@@ -317,7 +295,7 @@ contract AIAgentRegistry is Ownable, ReentrancyGuard {
     }
 
     // Updated view function for agent stats
-    function getAgentStats(string memory modelHash) 
+    function getAgentStats(address modelAddress) 
         external 
         view 
         returns (
@@ -326,7 +304,7 @@ contract AIAgentRegistry is Ownable, ReentrancyGuard {
             uint256 averageRating  // Scaled by 100
         ) 
     {
-        AIAgent storage agent = aiAgents[modelHash];
+        AIAgent storage agent = aiAgents[modelAddress];
         uint256 avgRating = agent.totalFeedbacks > 0 
             ? (agent.totalRatingPoints * 100) / agent.totalFeedbacks 
             : 0;
@@ -338,23 +316,22 @@ contract AIAgentRegistry is Ownable, ReentrancyGuard {
         );
     }
 
-    function getAgentStrategy(string memory modelHash) 
+    function getAgentStrategy(address modelAddress) 
         external 
         view 
         returns (string memory) 
     {
-        return agentStrategies[modelHash];
+        return agentStrategies[modelAddress];
     }
 
-    function updateAgentStrategy(string memory modelHash, string memory strategyHash) 
+    function updateAgentStrategy(address modelAddress, string memory strategy) 
         external 
     {
-        AIAgent storage agent = aiAgents[modelHash];
+        AIAgent storage agent = aiAgents[modelAddress];
         require(agent.isListed, "Agent not listed");
-        // Only allow updates from governance contract
-        require(msg.sender == owner(), "Only governance can update strategy");
+        require(modelAddress == msg.sender || msg.sender == owner(), "Only agent or governance can update strategy");
         
-        agentStrategies[modelHash] = strategyHash;
-        emit StrategyUpdated(modelHash, strategyHash);
+        agentStrategies[modelAddress] = strategy;
+        emit StrategyUpdated(modelAddress, strategy);
     }
 }

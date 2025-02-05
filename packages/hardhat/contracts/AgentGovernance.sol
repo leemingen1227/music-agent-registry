@@ -1,14 +1,12 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
+pragma solidity >=0.8.0 <0.9.0;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
 interface IAIAgentRegistry {
-    function aiAgents(string memory) external view returns (
-        address owner,
-        string memory modelHash,
+    function aiAgents(address) external view returns (
         string memory metadata,
         uint256 stake,
         bool isListed,
@@ -20,7 +18,7 @@ interface IAIAgentRegistry {
         uint256 totalVoterStakes
     );
 
-    function updateAgentStrategy(string memory modelHash, string memory strategyHash) external;
+    function updateAgentStrategy(address modelAddress, string memory strategy) external;
 }
 
 contract AgentGovernance is Ownable, ReentrancyGuard {
@@ -30,7 +28,7 @@ contract AgentGovernance is Ownable, ReentrancyGuard {
     struct Proposal {
         uint256 id;
         address proposer;
-        string agentHash;          // Which agent to modify
+        address agentAddress;      // Which agent to modify
         string description;        // e.g., "recommend more rnb music"
         string ipfsMetadata;       // Additional details about the proposal
         uint256 votesFor;
@@ -38,14 +36,8 @@ contract AgentGovernance is Ownable, ReentrancyGuard {
         uint256 startTime;
         uint256 endTime;
         bool executed;
-        string newStrategyHash;    // IPFS hash of the new strategy
-        ProposalType proposalType; // Type of proposal
+        string newStrategy;        // New strategy string
         mapping(address => bool) hasVoted;
-    }
-    
-    enum ProposalType {
-        GENERAL,
-        STRATEGY_UPDATE
     }
     
     uint256 public constant VOTING_PERIOD = 3 days;
@@ -56,8 +48,9 @@ contract AgentGovernance is Ownable, ReentrancyGuard {
     
     event ProposalCreated(
         uint256 indexed proposalId,
-        string agentHash,
+        address agentAddress,
         string description,
+        string newStrategy,
         address proposer
     );
     event VoteCast(
@@ -67,7 +60,7 @@ contract AgentGovernance is Ownable, ReentrancyGuard {
     );
     event ProposalExecuted(
         uint256 indexed proposalId,
-        string agentHash,
+        address agentAddress,
         bool accepted
     );
     
@@ -77,43 +70,10 @@ contract AgentGovernance is Ownable, ReentrancyGuard {
     }
     
     function createProposal(
-        string memory agentHash,
-        string memory description,
-        string memory ipfsMetadata
-    ) external nonReentrant {
-        require(
-            musicToken.balanceOf(msg.sender) >= MIN_TOKENS_TO_PROPOSE,
-            "Not enough tokens to propose"
-        );
-        
-        // Check if agent exists and is listed in the TCR
-        (,,,, bool isListed,,,,,,) = agentRegistry.aiAgents(agentHash);
-        require(isListed, "Agent not listed in TCR");
-        
-        proposalCount++;
-        Proposal storage proposal = proposals[proposalCount];
-        
-        proposal.id = proposalCount;
-        proposal.proposer = msg.sender;
-        proposal.agentHash = agentHash;
-        proposal.description = description;
-        proposal.ipfsMetadata = ipfsMetadata;
-        proposal.startTime = block.timestamp;
-        proposal.endTime = block.timestamp + VOTING_PERIOD;
-        
-        emit ProposalCreated(
-            proposalCount,
-            agentHash,
-            description,
-            msg.sender
-        );
-    }
-    
-    function createStrategyProposal(
-        string memory agentHash,
+        address agentAddress,
         string memory description,
         string memory ipfsMetadata,
-        string memory newStrategyHash
+        string memory newStrategy
     ) external nonReentrant {
         require(
             musicToken.balanceOf(msg.sender) >= MIN_TOKENS_TO_PROPOSE,
@@ -121,26 +81,27 @@ contract AgentGovernance is Ownable, ReentrancyGuard {
         );
         
         // Check if agent exists and is listed in the TCR
-        (,,,, bool isListed,,,,,,) = agentRegistry.aiAgents(agentHash);
+        (,, bool isListed,,,,,,) = agentRegistry.aiAgents(agentAddress);
         require(isListed, "Agent not listed in TCR");
+        require(bytes(newStrategy).length > 0, "Strategy required");
         
         proposalCount++;
         Proposal storage proposal = proposals[proposalCount];
         
         proposal.id = proposalCount;
         proposal.proposer = msg.sender;
-        proposal.agentHash = agentHash;
+        proposal.agentAddress = agentAddress;
         proposal.description = description;
         proposal.ipfsMetadata = ipfsMetadata;
-        proposal.newStrategyHash = newStrategyHash;
-        proposal.proposalType = ProposalType.STRATEGY_UPDATE;
+        proposal.newStrategy = newStrategy;
         proposal.startTime = block.timestamp;
         proposal.endTime = block.timestamp + VOTING_PERIOD;
         
         emit ProposalCreated(
             proposalCount,
-            agentHash,
+            agentAddress,
             description,
+            newStrategy,
             msg.sender
         );
     }
@@ -152,7 +113,7 @@ contract AgentGovernance is Ownable, ReentrancyGuard {
         require(!proposal.hasVoted[msg.sender], "Already voted");
         
         // Check if agent is still listed when voting
-        (,,,, bool isListed,,,,,,) = agentRegistry.aiAgents(proposal.agentHash);
+        (,, bool isListed,,,,,,) = agentRegistry.aiAgents(proposal.agentAddress);
         require(isListed, "Agent no longer listed in TCR");
         
         uint256 voterPower = musicToken.balanceOf(msg.sender);
@@ -176,29 +137,30 @@ contract AgentGovernance is Ownable, ReentrancyGuard {
         require(!proposal.executed, "Already executed");
         
         // Check if agent is still listed when executing
-        (,,,, bool isListed,,,,,,) = agentRegistry.aiAgents(proposal.agentHash);
+        (,, bool isListed,,,,,,) = agentRegistry.aiAgents(proposal.agentAddress);
         require(isListed, "Agent no longer listed in TCR");
         
         bool accepted = proposal.votesFor > proposal.votesAgainst;
         proposal.executed = true;
 
-        if (accepted && proposal.proposalType == ProposalType.STRATEGY_UPDATE) {
+        if (accepted) {
             // Update the agent's strategy if proposal is accepted
-             IAIAgentRegistry(address(agentRegistry)).updateAgentStrategy(
-                proposal.agentHash,
-                proposal.newStrategyHash
+            agentRegistry.updateAgentStrategy(
+                proposal.agentAddress,
+                proposal.newStrategy
             );
         }
         
-        emit ProposalExecuted(proposalId, proposal.agentHash, accepted);
+        emit ProposalExecuted(proposalId, proposal.agentAddress, accepted);
     }
     
     // View functions
     function getProposal(uint256 proposalId) external view returns (
         address proposer,
-        string memory agentHash,
+        address agentAddress,
         string memory description,
         string memory ipfsMetadata,
+        string memory newStrategy,
         uint256 votesFor,
         uint256 votesAgainst,
         uint256 endTime,
@@ -207,9 +169,10 @@ contract AgentGovernance is Ownable, ReentrancyGuard {
         Proposal storage proposal = proposals[proposalId];
         return (
             proposal.proposer,
-            proposal.agentHash,
+            proposal.agentAddress,
             proposal.description,
             proposal.ipfsMetadata,
+            proposal.newStrategy,
             proposal.votesFor,
             proposal.votesAgainst,
             proposal.endTime,
