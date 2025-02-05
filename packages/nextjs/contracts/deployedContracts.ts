@@ -7,7 +7,7 @@ import { GenericContractsDeclaration } from "~~/utils/scaffold-eth/contract";
 const deployedContracts = {
   31337: {
     AIAgentRegistry: {
-      address: "0xa82fF9aFd8f496c3d6ac40E2a0F282E47488CFc9",
+      address: "0x8A791620dd6260079BF849Dc5567aDC3F2FdC318",
       abi: [
         {
           inputs: [
@@ -25,9 +25,9 @@ const deployedContracts = {
           inputs: [
             {
               indexed: true,
-              internalType: "string",
-              name: "modelHash",
-              type: "string",
+              internalType: "address",
+              name: "modelAddress",
+              type: "address",
             },
             {
               indexed: false,
@@ -50,14 +50,8 @@ const deployedContracts = {
           inputs: [
             {
               indexed: false,
-              internalType: "string",
-              name: "modelHash",
-              type: "string",
-            },
-            {
-              indexed: false,
               internalType: "address",
-              name: "owner",
+              name: "modelAddress",
               type: "address",
             },
             {
@@ -72,6 +66,12 @@ const deployedContracts = {
               name: "metadata",
               type: "string",
             },
+            {
+              indexed: false,
+              internalType: "string",
+              name: "strategy",
+              type: "string",
+            },
           ],
           name: "AgentSubmitted",
           type: "event",
@@ -81,9 +81,9 @@ const deployedContracts = {
           inputs: [
             {
               indexed: true,
-              internalType: "string",
-              name: "modelHash",
-              type: "string",
+              internalType: "address",
+              name: "modelAddress",
+              type: "address",
             },
             {
               indexed: false,
@@ -112,14 +112,8 @@ const deployedContracts = {
           inputs: [
             {
               indexed: true,
-              internalType: "string",
-              name: "modelHash",
-              type: "string",
-            },
-            {
-              indexed: true,
               internalType: "address",
-              name: "user",
+              name: "modelAddress",
               type: "address",
             },
             {
@@ -174,9 +168,9 @@ const deployedContracts = {
           inputs: [
             {
               indexed: true,
-              internalType: "string",
-              name: "modelHash",
-              type: "string",
+              internalType: "address",
+              name: "modelAddress",
+              type: "address",
             },
             {
               indexed: false,
@@ -193,14 +187,14 @@ const deployedContracts = {
           inputs: [
             {
               indexed: true,
-              internalType: "string",
-              name: "modelHash",
-              type: "string",
+              internalType: "address",
+              name: "modelAddress",
+              type: "address",
             },
             {
               indexed: false,
               internalType: "string",
-              name: "newStrategyHash",
+              name: "newStrategy",
               type: "string",
             },
           ],
@@ -212,9 +206,9 @@ const deployedContracts = {
           inputs: [
             {
               indexed: true,
-              internalType: "string",
-              name: "modelHash",
-              type: "string",
+              internalType: "address",
+              name: "modelAddress",
+              type: "address",
             },
             {
               indexed: false,
@@ -241,19 +235,6 @@ const deployedContracts = {
         {
           inputs: [],
           name: "CHALLENGE_PERIOD",
-          outputs: [
-            {
-              internalType: "uint256",
-              name: "",
-              type: "uint256",
-            },
-          ],
-          stateMutability: "view",
-          type: "function",
-        },
-        {
-          inputs: [],
-          name: "FEEDBACK_COOLDOWN",
           outputs: [
             {
               internalType: "uint256",
@@ -293,9 +274,9 @@ const deployedContracts = {
         {
           inputs: [
             {
-              internalType: "string",
+              internalType: "address",
               name: "",
-              type: "string",
+              type: "address",
             },
           ],
           name: "agentStrategies",
@@ -312,23 +293,13 @@ const deployedContracts = {
         {
           inputs: [
             {
-              internalType: "string",
+              internalType: "address",
               name: "",
-              type: "string",
+              type: "address",
             },
           ],
           name: "aiAgents",
           outputs: [
-            {
-              internalType: "address",
-              name: "owner",
-              type: "address",
-            },
-            {
-              internalType: "string",
-              name: "modelHash",
-              type: "string",
-            },
             {
               internalType: "string",
               name: "metadata",
@@ -375,11 +346,6 @@ const deployedContracts = {
               type: "uint256",
             },
             {
-              internalType: "string",
-              name: "initialStrategy",
-              type: "string",
-            },
-            {
               internalType: "uint256",
               name: "totalRatingPoints",
               type: "uint256",
@@ -401,9 +367,9 @@ const deployedContracts = {
         {
           inputs: [
             {
-              internalType: "string",
-              name: "modelHash",
-              type: "string",
+              internalType: "address",
+              name: "modelAddress",
+              type: "address",
             },
             {
               internalType: "uint256",
@@ -419,18 +385,13 @@ const deployedContracts = {
         {
           inputs: [
             {
-              internalType: "string",
-              name: "modelHash",
-              type: "string",
+              internalType: "address",
+              name: "modelAddress",
+              type: "address",
             },
           ],
           name: "getAgent",
           outputs: [
-            {
-              internalType: "address",
-              name: "owner",
-              type: "address",
-            },
             {
               internalType: "string",
               name: "metadata",
@@ -478,9 +439,9 @@ const deployedContracts = {
         {
           inputs: [
             {
-              internalType: "string",
-              name: "modelHash",
-              type: "string",
+              internalType: "address",
+              name: "modelAddress",
+              type: "address",
             },
           ],
           name: "getAgentStats",
@@ -507,9 +468,9 @@ const deployedContracts = {
         {
           inputs: [
             {
-              internalType: "string",
-              name: "modelHash",
-              type: "string",
+              internalType: "address",
+              name: "modelAddress",
+              type: "address",
             },
           ],
           name: "getAgentStrategy",
@@ -526,9 +487,9 @@ const deployedContracts = {
         {
           inputs: [
             {
-              internalType: "string",
+              internalType: "address",
               name: "",
-              type: "string",
+              type: "address",
             },
             {
               internalType: "address",
@@ -550,11 +511,6 @@ const deployedContracts = {
         {
           inputs: [
             {
-              internalType: "string",
-              name: "modelHash",
-              type: "string",
-            },
-            {
               internalType: "uint256",
               name: "additionalStake",
               type: "uint256",
@@ -568,9 +524,9 @@ const deployedContracts = {
         {
           inputs: [
             {
-              internalType: "string",
+              internalType: "address",
               name: "",
-              type: "string",
+              type: "address",
             },
             {
               internalType: "address",
@@ -625,9 +581,9 @@ const deployedContracts = {
         {
           inputs: [
             {
-              internalType: "string",
-              name: "modelHash",
-              type: "string",
+              internalType: "address",
+              name: "modelAddress",
+              type: "address",
             },
           ],
           name: "resolveChallenge",
@@ -639,17 +595,12 @@ const deployedContracts = {
           inputs: [
             {
               internalType: "string",
-              name: "modelHash",
-              type: "string",
-            },
-            {
-              internalType: "string",
               name: "metadata",
               type: "string",
             },
             {
               internalType: "string",
-              name: "initialStrategy",
+              name: "strategy",
               type: "string",
             },
             {
@@ -665,11 +616,6 @@ const deployedContracts = {
         },
         {
           inputs: [
-            {
-              internalType: "string",
-              name: "modelHash",
-              type: "string",
-            },
             {
               internalType: "bool",
               name: "alignsWithStrategy",
@@ -707,13 +653,13 @@ const deployedContracts = {
         {
           inputs: [
             {
-              internalType: "string",
-              name: "modelHash",
-              type: "string",
+              internalType: "address",
+              name: "modelAddress",
+              type: "address",
             },
             {
               internalType: "string",
-              name: "strategyHash",
+              name: "strategy",
               type: "string",
             },
           ],
@@ -725,9 +671,9 @@ const deployedContracts = {
         {
           inputs: [
             {
-              internalType: "string",
-              name: "modelHash",
-              type: "string",
+              internalType: "address",
+              name: "modelAddress",
+              type: "address",
             },
             {
               internalType: "bool",
@@ -748,9 +694,9 @@ const deployedContracts = {
         {
           inputs: [
             {
-              internalType: "string",
+              internalType: "address",
               name: "",
-              type: "string",
+              type: "address",
             },
             {
               internalType: "address",
@@ -777,7 +723,7 @@ const deployedContracts = {
       },
     },
     AgentGovernance: {
-      address: "0x1613beB3B2C4f22Ee086B2b38C1476A3cE7f78E8",
+      address: "0x610178dA211FEF7D417bC0e6FeD39F05609AD788",
       abi: [
         {
           inputs: [
@@ -825,14 +771,20 @@ const deployedContracts = {
             },
             {
               indexed: false,
-              internalType: "string",
-              name: "agentHash",
-              type: "string",
+              internalType: "address",
+              name: "agentAddress",
+              type: "address",
             },
             {
               indexed: false,
               internalType: "string",
               name: "description",
+              type: "string",
+            },
+            {
+              indexed: false,
+              internalType: "string",
+              name: "newStrategy",
               type: "string",
             },
             {
@@ -856,9 +808,9 @@ const deployedContracts = {
             },
             {
               indexed: false,
-              internalType: "string",
-              name: "agentHash",
-              type: "string",
+              internalType: "address",
+              name: "agentAddress",
+              type: "address",
             },
             {
               indexed: false,
@@ -937,9 +889,9 @@ const deployedContracts = {
         {
           inputs: [
             {
-              internalType: "string",
-              name: "agentHash",
-              type: "string",
+              internalType: "address",
+              name: "agentAddress",
+              type: "address",
             },
             {
               internalType: "string",
@@ -949,38 +901,15 @@ const deployedContracts = {
             {
               internalType: "string",
               name: "ipfsMetadata",
+              type: "string",
+            },
+            {
+              internalType: "string",
+              name: "newStrategy",
               type: "string",
             },
           ],
           name: "createProposal",
-          outputs: [],
-          stateMutability: "nonpayable",
-          type: "function",
-        },
-        {
-          inputs: [
-            {
-              internalType: "string",
-              name: "agentHash",
-              type: "string",
-            },
-            {
-              internalType: "string",
-              name: "description",
-              type: "string",
-            },
-            {
-              internalType: "string",
-              name: "ipfsMetadata",
-              type: "string",
-            },
-            {
-              internalType: "string",
-              name: "newStrategyHash",
-              type: "string",
-            },
-          ],
-          name: "createStrategyProposal",
           outputs: [],
           stateMutability: "nonpayable",
           type: "function",
@@ -1014,9 +943,9 @@ const deployedContracts = {
               type: "address",
             },
             {
-              internalType: "string",
-              name: "agentHash",
-              type: "string",
+              internalType: "address",
+              name: "agentAddress",
+              type: "address",
             },
             {
               internalType: "string",
@@ -1026,6 +955,11 @@ const deployedContracts = {
             {
               internalType: "string",
               name: "ipfsMetadata",
+              type: "string",
+            },
+            {
+              internalType: "string",
+              name: "newStrategy",
               type: "string",
             },
             {
@@ -1136,9 +1070,9 @@ const deployedContracts = {
               type: "address",
             },
             {
-              internalType: "string",
-              name: "agentHash",
-              type: "string",
+              internalType: "address",
+              name: "agentAddress",
+              type: "address",
             },
             {
               internalType: "string",
@@ -1177,13 +1111,8 @@ const deployedContracts = {
             },
             {
               internalType: "string",
-              name: "newStrategyHash",
+              name: "newStrategy",
               type: "string",
-            },
-            {
-              internalType: "enum AgentGovernance.ProposalType",
-              name: "proposalType",
-              type: "uint8",
             },
           ],
           stateMutability: "view",
@@ -1235,7 +1164,7 @@ const deployedContracts = {
       },
     },
     MusicToken: {
-      address: "0x9E545E3C0baAB3E08CdfD552C960A1050f373042",
+      address: "0x2279B7A0a67DB372996a5FaB50D91eAA73d2eBe6",
       abi: [
         {
           inputs: [

@@ -22,25 +22,26 @@ import * as readline from "readline";
 import { Contract, JsonRpcProvider } from "ethers";
 import { AIAgentRegistryABI } from "./constant";
 import { encodeFunctionData, Hex } from "viem";
+import { ethers } from "ethers";
+import { initializeAgentRegistration } from "./agent-registry";
 
 dotenv.config();
 
 // Define the input schemas
 const SubmitFeedbackSchema = z.object({
-  modelHash: z.string().describe("The model hash of the AI agent"),
   alignsWithStrategy: z.boolean().describe("Whether the recommendation aligns with the agent's strategy"),
   rating: z.number().int().min(1).max(5).describe("Rating from 1-5, where 5 is best"),
   comment: z.string().describe("Detailed feedback comment explaining the rating")
 });
 
 const GetAgentDataSchema = z.object({
-  modelHash: z.string().describe("The model hash of the AI agent to get data for")
+  agentAddress: z.string().describe("The wallet address of the AI agent to get data for")
 });
 
 // Add type definitions
 interface FeedbackEvent {
   args?: {
-    user: string;
+    modelAddress: string;
     alignsWithStrategy: boolean;
     rating: number;
     comment: string;
@@ -69,7 +70,7 @@ const submitFeedbackProvider = customActionProvider<EvmWalletProvider>({
       const data = encodeFunctionData({
         abi: AIAgentRegistryABI,
         functionName: "submitFeedback",
-        args: [process.env.AGENT_MODEL_HASH!, args.alignsWithStrategy, args.rating.toString(), args.comment]
+        args: [args.alignsWithStrategy, args.rating, args.comment]
       });
 
       const hash = await walletProvider.sendTransaction({
@@ -79,7 +80,7 @@ const submitFeedbackProvider = customActionProvider<EvmWalletProvider>({
 
       await walletProvider.waitForTransactionReceipt(hash);
 
-      return `Successfully submitted feedback for agent ${args.modelHash}. Transaction hash: ${hash}`;
+      return `Successfully submitted feedback. Transaction hash: ${hash}`;
     } catch (error) {
       console.error("Error submitting feedback:", error);
       return `Failed to submit feedback: ${error}`;
@@ -96,30 +97,31 @@ const getAgentDataProvider = customActionProvider<EvmWalletProvider>({
   name: "get_agent_data",
   description: REFRESH_DATA_PROMPT,
   schema: GetAgentDataSchema,
-  invoke: async () => {
+  invoke: async (walletProvider: EvmWalletProvider) => {
     try {
       const provider = new JsonRpcProvider(process.env.RPC_URL);
       const contract = new Contract(process.env.AI_AGENT_REGISTRY_ADDRESS!, AIAgentRegistryABI, provider);
+      const agentAddress = walletProvider.getAddress();
 
       // Get agent's strategy
-      const strategy = await contract.getAgentStrategy(process.env.AGENT_MODEL_HASH!);
+      const strategy = await contract.getAgentStrategy(agentAddress);
 
       // Get agent stats
-      const stats = (await contract.getAgentStats(process.env.AGENT_MODEL_HASH!)) as AgentStats;
+      const stats = (await contract.getAgentStats(agentAddress)) as AgentStats;
       const { totalFeedbacks, positiveAlignments, averageRating } = stats;
 
       // Get recent feedback using event logs
-      const filter = contract.filters.FeedbackSubmitted(process.env.AGENT_MODEL_HASH!);
+      const filter = contract.filters.FeedbackSubmitted(agentAddress);
       const events = (await contract.queryFilter(filter)) as FeedbackEvent[];
       const recentEvents = events.slice(-5); // Get last 5 feedback events
 
       let feedbackStr = `Stats:\n- Total Feedbacks: ${totalFeedbacks}\n- Positive Alignments: ${positiveAlignments}\n- Average Rating: ${Number(averageRating) / 100}\n\nRecent feedback:\n`;
 
       for (const event of recentEvents) {
-        const { user, alignsWithStrategy, rating, comment, timestamp } = event.args || {};
+        const { modelAddress, alignsWithStrategy, rating, comment, timestamp } = event.args || {};
         if (timestamp) {
           const date = new Date(Number(timestamp) * 1000);
-          feedbackStr += `\n- User: ${user}\n  Rating: ${rating}/5\n  Aligns with strategy: ${alignsWithStrategy}\n  Comment: ${comment}\n  Time: ${date.toISOString()}\n`;
+          feedbackStr += `\n- Agent: ${modelAddress}\n  Rating: ${rating}/5\n  Aligns with strategy: ${alignsWithStrategy}\n  Comment: ${comment}\n  Time: ${date.toISOString()}\n`;
         }
       }
 
@@ -135,7 +137,15 @@ const getAgentDataProvider = customActionProvider<EvmWalletProvider>({
  * Validates that required environment variables are set
  */
 function validateEnvironment(): void {
-  const requiredVars = ["OPENAI_API_KEY", "CDP_API_KEY_NAME", "CDP_API_KEY_PRIVATE_KEY", "AI_AGENT_REGISTRY_ADDRESS", "RPC_URL", "AGENT_MODEL_HASH", "NETWORK_ID"];
+  const requiredVars = [
+    "OPENAI_API_KEY",
+    "CDP_API_KEY_NAME",
+    "CDP_API_KEY_PRIVATE_KEY",
+    "AI_AGENT_REGISTRY_ADDRESS",
+    "RPC_URL",
+    "AGENT_ADDRESS",
+    "NETWORK_ID"
+  ];
 
   const missingVars = requiredVars.filter((varName) => !process.env[varName]);
 
@@ -155,29 +165,31 @@ const WALLET_DATA_FILE = "wallet_data.txt";
 
 async function getAgentData(agentkit: AgentKit): Promise<{ strategy: string; feedback: string }> {
   try {
-    // Get agent's strategy
     const provider = new JsonRpcProvider(process.env.RPC_URL);
     const contract = new Contract(process.env.AI_AGENT_REGISTRY_ADDRESS!, AIAgentRegistryABI, provider);
+    
+    // Use environment variable for now since we can't access the wallet address directly
+    const agentAddress = process.env.AGENT_ADDRESS!;
 
     // Get agent's strategy
-    const strategy = await contract.getAgentStrategy(process.env.AGENT_MODEL_HASH!);
+    const strategy = await contract.getAgentStrategy(agentAddress);
 
     // Get agent stats
-    const stats = (await contract.getAgentStats(process.env.AGENT_MODEL_HASH!)) as AgentStats;
+    const stats = (await contract.getAgentStats(agentAddress)) as AgentStats;
     const { totalFeedbacks, positiveAlignments, averageRating } = stats;
 
     // Get recent feedback using event logs
-    const filter = contract.filters.FeedbackSubmitted(process.env.AGENT_MODEL_HASH!);
+    const filter = contract.filters.FeedbackSubmitted(agentAddress);
     const events = (await contract.queryFilter(filter)) as FeedbackEvent[];
     const recentEvents = events.slice(-5); // Get last 5 feedback events
 
     let feedbackStr = `Stats:\n- Total Feedbacks: ${totalFeedbacks}\n- Positive Alignments: ${positiveAlignments}\n- Average Rating: ${Number(averageRating) / 100}\n\nRecent feedback:\n`;
 
     for (const event of recentEvents) {
-      const { user, alignsWithStrategy, rating, comment, timestamp } = event.args || {};
+      const { modelAddress, alignsWithStrategy, rating, comment, timestamp } = event.args || {};
       if (timestamp) {
         const date = new Date(Number(timestamp) * 1000);
-        feedbackStr += `\n- User: ${user}\n  Rating: ${rating}/5\n  Aligns with strategy: ${alignsWithStrategy}\n  Comment: ${comment}\n  Time: ${date.toISOString()}\n`;
+        feedbackStr += `\n- Agent: ${modelAddress}\n  Rating: ${rating}/5\n  Aligns with strategy: ${alignsWithStrategy}\n  Comment: ${comment}\n  Time: ${date.toISOString()}\n`;
       }
     }
 
@@ -243,6 +255,19 @@ async function initializeAgent() {
       ]
     });
 
+    // Initialize agent registration if needed
+    const registrationConfig = {
+      metadata: "ipfs://QmDefaultMetadata", // Should be updated with actual IPFS metadata
+      strategy: "Recommend diverse music across genres with focus on user preferences",
+      stake: ethers.parseEther("100"),
+      initialFunding: ethers.parseEther("150") // Extra buffer above minimum stake
+    };
+
+    const registered = await initializeAgentRegistration(walletProvider, registrationConfig);
+    if (!registered) {
+      throw new Error("Failed to initialize agent registration");
+    }
+
     const tools = await getLangChainTools(agentkit);
 
     // Get initial agent data using the provider's method
@@ -259,7 +284,7 @@ async function initializeAgent() {
         You are a helpful agent that can interact with the AI Agent Registry on the blockchain.
         You can submit feedback for AI agents and retrieve their current strategies and performance data.
         
-        Your model hash is ${process.env.AGENT_MODEL_HASH}
+        Your address is ${process.env.AGENT_ADDRESS}
         You are running on network: ${process.env.NETWORK_ID}
         
         Current agent data:
