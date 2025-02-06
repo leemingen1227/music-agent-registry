@@ -19,13 +19,14 @@ import { z } from "zod";
 import * as dotenv from "dotenv";
 import * as fs from "fs";
 import * as readline from "readline";
-import { Contract, JsonRpcProvider } from "ethers";
-import { AIAgentRegistryABI } from "./constant";
-import { encodeFunctionData, Hex } from "viem";
-import { ethers } from "ethers";
-import { initializeAgentRegistration } from "./agent-registry";
-
+import { Contract, JsonRpcProvider, ethers } from "ethers";
+import { AIAgentRegistryABI } from "./constant/AIAgentRegistryABI";
+import { Address, Abi } from "viem";
+import { agentRegistry } from "./agent-registry";
+import { Wallet, readContract } from "@coinbase/coinbase-sdk";
 dotenv.config();
+
+let agentAddress: string;
 
 // Define the input schemas
 const SubmitFeedbackSchema = z.object({
@@ -61,26 +62,31 @@ a rating (1-5), and a comment explaining the rating.
 `;
 
 // Custom actions for AI Agent Registry
-const submitFeedbackProvider = customActionProvider<EvmWalletProvider>({
+const submitFeedbackProvider = customActionProvider<CdpWalletProvider>({
   name: "submit_feedback",
   description: SUBMIT_FEEDBACK_PROMPT,
   schema: SubmitFeedbackSchema,
   invoke: async (walletProvider, args) => {
     try {
-      const data = encodeFunctionData({
-        abi: AIAgentRegistryABI,
-        functionName: "submitFeedback",
-        args: [args.alignsWithStrategy, args.rating, args.comment]
+      const walletData = JSON.parse(fs.readFileSync("wallet_data.txt", "utf8"));
+      const wallet = await Wallet.import(walletData, process.env.NETWORK_ID || "base-sepolia");
+
+      const feedbackArgs = {
+        alignsWithStrategy: args.alignsWithStrategy,
+        rating: args.rating.toString(),
+        comment: args.comment
+      };
+
+      const contractInvocation = await wallet.invokeContract({
+        contractAddress: process.env.AI_AGENT_REGISTRY_ADDRESS! as Address,
+        method: "submitFeedback",
+        args: feedbackArgs,
+        abi: AIAgentRegistryABI
       });
 
-      const hash = await walletProvider.sendTransaction({
-        to: process.env.AI_AGENT_REGISTRY_ADDRESS! as `0x${string}`,
-        data
-      });
-
-      await walletProvider.waitForTransactionReceipt(hash);
-
-      return `Successfully submitted feedback. Transaction hash: ${hash}`;
+      console.log("Contract invocation created, waiting for confirmation...");
+      const result = await contractInvocation.wait();
+      return `Successfully submitted feedback. Transaction hash: ${result}`;
     } catch (error) {
       console.error("Error submitting feedback:", error);
       return `Failed to submit feedback: ${error}`;
@@ -93,24 +99,42 @@ Updates your knowledge of your current strategy and recent feedback from the blo
 Use this when you want to ensure you have the latest information about your performance and strategy.
 `;
 
-const getAgentDataProvider = customActionProvider<EvmWalletProvider>({
+const getAgentDataProvider = customActionProvider<CdpWalletProvider>({
   name: "get_agent_data",
   description: REFRESH_DATA_PROMPT,
   schema: GetAgentDataSchema,
-  invoke: async (walletProvider: EvmWalletProvider) => {
+  invoke: async () => {
     try {
-      const provider = new JsonRpcProvider(process.env.RPC_URL);
-      const contract = new Contract(process.env.AI_AGENT_REGISTRY_ADDRESS!, AIAgentRegistryABI, provider);
-      const agentAddress = walletProvider.getAddress();
+      const networkId = process.env.NETWORK_ID || "base-sepolia";
+      const registryAddress = process.env.AI_AGENT_REGISTRY_ADDRESS! as Address;
 
       // Get agent's strategy
-      const strategy = await contract.getAgentStrategy(agentAddress);
+      const strategy = (await readContract({
+        networkId,
+        abi: AIAgentRegistryABI as Abi,
+        contractAddress: registryAddress,
+        method: "getAgentStrategy",
+        args: {
+          modelAddress: agentAddress
+        }
+      })) as string;
 
       // Get agent stats
-      const stats = (await contract.getAgentStats(agentAddress)) as AgentStats;
+      const stats = (await readContract({
+        networkId,
+        abi: AIAgentRegistryABI as Abi,
+        contractAddress: registryAddress,
+        method: "getAgentStats",
+        args: {
+          modelAddress: agentAddress
+        }
+      })) as AgentStats;
+
       const { totalFeedbacks, positiveAlignments, averageRating } = stats;
 
       // Get recent feedback using event logs
+      const provider = new JsonRpcProvider(process.env.RPC_URL);
+      const contract = new Contract(registryAddress, AIAgentRegistryABI, provider);
       const filter = contract.filters.FeedbackSubmitted(agentAddress);
       const events = (await contract.queryFilter(filter)) as FeedbackEvent[];
       const recentEvents = events.slice(-5); // Get last 5 feedback events
@@ -137,15 +161,7 @@ const getAgentDataProvider = customActionProvider<EvmWalletProvider>({
  * Validates that required environment variables are set
  */
 function validateEnvironment(): void {
-  const requiredVars = [
-    "OPENAI_API_KEY",
-    "CDP_API_KEY_NAME",
-    "CDP_API_KEY_PRIVATE_KEY",
-    "AI_AGENT_REGISTRY_ADDRESS",
-    "RPC_URL",
-    "AGENT_ADDRESS",
-    "NETWORK_ID"
-  ];
+  const requiredVars = ["OPENAI_API_KEY", "CDP_API_KEY_NAME", "CDP_API_KEY_PRIVATE_KEY", "AI_AGENT_REGISTRY_ADDRESS", "RPC_URL", "NETWORK_ID"];
 
   const missingVars = requiredVars.filter((varName) => !process.env[varName]);
 
@@ -163,22 +179,39 @@ validateEnvironment();
 // Configure files to persist data
 const WALLET_DATA_FILE = "wallet_data.txt";
 
-async function getAgentData(agentkit: AgentKit): Promise<{ strategy: string; feedback: string }> {
+async function getAgentData(agentkit: AgentKit, walletProvider: CdpWalletProvider): Promise<{ strategy: string; feedback: string }> {
   try {
-    const provider = new JsonRpcProvider(process.env.RPC_URL);
-    const contract = new Contract(process.env.AI_AGENT_REGISTRY_ADDRESS!, AIAgentRegistryABI, provider);
-    
-    // Use environment variable for now since we can't access the wallet address directly
-    const agentAddress = process.env.AGENT_ADDRESS!;
+    const networkId = process.env.NETWORK_ID || "base-sepolia";
+    const registryAddress = process.env.AI_AGENT_REGISTRY_ADDRESS! as Address;
+    const agentAddress = walletProvider.getAddress();
 
     // Get agent's strategy
-    const strategy = await contract.getAgentStrategy(agentAddress);
+    const strategy = (await readContract({
+      networkId,
+      abi: AIAgentRegistryABI as Abi,
+      contractAddress: registryAddress,
+      method: "getAgentStrategy",
+      args: {
+        modelAddress: agentAddress
+      }
+    })) as string;
 
     // Get agent stats
-    const stats = (await contract.getAgentStats(agentAddress)) as AgentStats;
+    const stats = (await readContract({
+      networkId,
+      abi: AIAgentRegistryABI as Abi,
+      contractAddress: registryAddress,
+      method: "getAgentStats",
+      args: {
+        modelAddress: agentAddress
+      }
+    })) as AgentStats;
+
     const { totalFeedbacks, positiveAlignments, averageRating } = stats;
 
     // Get recent feedback using event logs
+    const provider = new JsonRpcProvider(process.env.RPC_URL);
+    const contract = new Contract(registryAddress, AIAgentRegistryABI, provider);
     const filter = contract.filters.FeedbackSubmitted(agentAddress);
     const events = (await contract.queryFilter(filter)) as FeedbackEvent[];
     const recentEvents = events.slice(-5); // Get last 5 feedback events
@@ -234,6 +267,25 @@ async function initializeAgent() {
 
     const walletProvider = await CdpWalletProvider.configureWithWallet(config);
 
+    // Verify wallet is properly initialized
+    const address = walletProvider.getAddress();
+    agentAddress = address;
+    if (!address) {
+      throw new Error("Failed to initialize wallet provider - no address available");
+    }
+
+    // Request ETH from faucet for the wallet
+    const faucet = await cdpApiActionProvider({
+      apiKeyName: process.env.CDP_API_KEY_NAME,
+      apiKeyPrivateKey: process.env.CDP_API_KEY_PRIVATE_KEY?.replace(/\\n/g, "\n")
+    }).faucet(walletProvider, {
+      assetId: "eth" // Request ETH from the faucet
+    });
+
+    console.log("Faucet request:", faucet);
+
+    console.log("Initialized wallet with address:", address);
+
     // Initialize AgentKit with all providers including our custom actions
     const agentkit = await AgentKit.from({
       walletProvider,
@@ -257,13 +309,13 @@ async function initializeAgent() {
 
     // Initialize agent registration if needed
     const registrationConfig = {
-      metadata: "ipfs://QmDefaultMetadata", // Should be updated with actual IPFS metadata
+      metadata: "test metadata",
       strategy: "Recommend diverse music across genres with focus on user preferences",
       stake: ethers.parseEther("100"),
       initialFunding: ethers.parseEther("150") // Extra buffer above minimum stake
     };
 
-    const registered = await initializeAgentRegistration(walletProvider, registrationConfig);
+    const registered = await agentRegistry.initializeAgentRegistration(agentAddress, registrationConfig);
     if (!registered) {
       throw new Error("Failed to initialize agent registration");
     }
@@ -271,7 +323,7 @@ async function initializeAgent() {
     const tools = await getLangChainTools(agentkit);
 
     // Get initial agent data using the provider's method
-    const agentData = await getAgentData(agentkit);
+    const agentData = await getAgentData(agentkit, walletProvider);
 
     const memory = new MemorySaver();
     const agentConfig = { configurable: { thread_id: "AI Agent Registry Bot!" } };
@@ -284,7 +336,7 @@ async function initializeAgent() {
         You are a helpful agent that can interact with the AI Agent Registry on the blockchain.
         You can submit feedback for AI agents and retrieve their current strategies and performance data.
         
-        Your address is ${process.env.AGENT_ADDRESS}
+        Your address is ${walletProvider.getAddress()}
         You are running on network: ${process.env.NETWORK_ID}
         
         Current agent data:

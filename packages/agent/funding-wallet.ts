@@ -1,25 +1,6 @@
 import { JsonRpcProvider, Wallet } from "ethers";
 import { encodeFunctionData, Address } from "viem";
-
-const MUSIC_TOKEN_ABI = [
-  {
-    type: "function",
-    name: "transfer",
-    inputs: [
-      { name: "to", type: "address" },
-      { name: "amount", type: "uint256" }
-    ],
-    outputs: [{ name: "", type: "bool" }],
-    stateMutability: "nonpayable"
-  },
-  {
-    type: "function",
-    name: "balanceOf",
-    inputs: [{ name: "account", type: "address" }],
-    outputs: [{ name: "", type: "uint256" }],
-    stateMutability: "view"
-  }
-] as const;
+import { MusicTokenABI } from "./constant/MusicTokenABI";
 
 export class FundingWallet {
   private wallet: Wallet;
@@ -40,7 +21,7 @@ export class FundingWallet {
   async checkBalance(): Promise<bigint> {
     const tokenAddress = process.env.MUSIC_TOKEN_ADDRESS! as Address;
     const data = encodeFunctionData({
-      abi: MUSIC_TOKEN_ABI,
+      abi: MusicTokenABI,
       functionName: "balanceOf",
       args: [this.wallet.address as Address]
     });
@@ -64,7 +45,7 @@ export class FundingWallet {
       }
 
       const data = encodeFunctionData({
-        abi: MUSIC_TOKEN_ABI,
+        abi: MusicTokenABI,
         functionName: "transfer",
         args: [agentAddress as Address, amount]
       });

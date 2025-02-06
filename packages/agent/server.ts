@@ -2,7 +2,7 @@ import express from "express";
 import { ethers } from "ethers";
 import { HumanMessage } from "@langchain/core/messages";
 import { initializeAgent } from "./chatbot";
-import { AIAgentRegistryABI } from "./constant";
+import { AIAgentRegistryABI } from "./constant/AIAgentRegistryABI";
 import * as dotenv from "dotenv";
 
 dotenv.config();

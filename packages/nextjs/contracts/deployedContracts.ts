@@ -5,1467 +5,9 @@
 import { GenericContractsDeclaration } from "~~/utils/scaffold-eth/contract";
 
 const deployedContracts = {
-  31337: {
-    AIAgentRegistry: {
-      address: "0x8A791620dd6260079BF849Dc5567aDC3F2FdC318",
-      abi: [
-        {
-          inputs: [
-            {
-              internalType: "address",
-              name: "_musicToken",
-              type: "address",
-            },
-          ],
-          stateMutability: "nonpayable",
-          type: "constructor",
-        },
-        {
-          anonymous: false,
-          inputs: [
-            {
-              indexed: true,
-              internalType: "address",
-              name: "modelAddress",
-              type: "address",
-            },
-            {
-              indexed: false,
-              internalType: "address",
-              name: "challenger",
-              type: "address",
-            },
-            {
-              indexed: false,
-              internalType: "uint256",
-              name: "stake",
-              type: "uint256",
-            },
-          ],
-          name: "AgentChallenged",
-          type: "event",
-        },
-        {
-          anonymous: false,
-          inputs: [
-            {
-              indexed: false,
-              internalType: "address",
-              name: "modelAddress",
-              type: "address",
-            },
-            {
-              indexed: false,
-              internalType: "uint256",
-              name: "stake",
-              type: "uint256",
-            },
-            {
-              indexed: false,
-              internalType: "string",
-              name: "metadata",
-              type: "string",
-            },
-            {
-              indexed: false,
-              internalType: "string",
-              name: "strategy",
-              type: "string",
-            },
-          ],
-          name: "AgentSubmitted",
-          type: "event",
-        },
-        {
-          anonymous: false,
-          inputs: [
-            {
-              indexed: true,
-              internalType: "address",
-              name: "modelAddress",
-              type: "address",
-            },
-            {
-              indexed: false,
-              internalType: "bool",
-              name: "accepted",
-              type: "bool",
-            },
-            {
-              indexed: false,
-              internalType: "uint256",
-              name: "winnerReward",
-              type: "uint256",
-            },
-            {
-              indexed: false,
-              internalType: "uint256",
-              name: "voterRewards",
-              type: "uint256",
-            },
-          ],
-          name: "ChallengeResolved",
-          type: "event",
-        },
-        {
-          anonymous: false,
-          inputs: [
-            {
-              indexed: true,
-              internalType: "address",
-              name: "modelAddress",
-              type: "address",
-            },
-            {
-              indexed: false,
-              internalType: "bool",
-              name: "alignsWithStrategy",
-              type: "bool",
-            },
-            {
-              indexed: false,
-              internalType: "uint8",
-              name: "rating",
-              type: "uint8",
-            },
-            {
-              indexed: false,
-              internalType: "string",
-              name: "comment",
-              type: "string",
-            },
-            {
-              indexed: false,
-              internalType: "uint256",
-              name: "timestamp",
-              type: "uint256",
-            },
-          ],
-          name: "FeedbackSubmitted",
-          type: "event",
-        },
-        {
-          anonymous: false,
-          inputs: [
-            {
-              indexed: true,
-              internalType: "address",
-              name: "previousOwner",
-              type: "address",
-            },
-            {
-              indexed: true,
-              internalType: "address",
-              name: "newOwner",
-              type: "address",
-            },
-          ],
-          name: "OwnershipTransferred",
-          type: "event",
-        },
-        {
-          anonymous: false,
-          inputs: [
-            {
-              indexed: true,
-              internalType: "address",
-              name: "modelAddress",
-              type: "address",
-            },
-            {
-              indexed: false,
-              internalType: "uint256",
-              name: "additionalStake",
-              type: "uint256",
-            },
-          ],
-          name: "StakeIncreased",
-          type: "event",
-        },
-        {
-          anonymous: false,
-          inputs: [
-            {
-              indexed: true,
-              internalType: "address",
-              name: "modelAddress",
-              type: "address",
-            },
-            {
-              indexed: false,
-              internalType: "string",
-              name: "newStrategy",
-              type: "string",
-            },
-          ],
-          name: "StrategyUpdated",
-          type: "event",
-        },
-        {
-          anonymous: false,
-          inputs: [
-            {
-              indexed: true,
-              internalType: "address",
-              name: "modelAddress",
-              type: "address",
-            },
-            {
-              indexed: false,
-              internalType: "address",
-              name: "voter",
-              type: "address",
-            },
-            {
-              indexed: false,
-              internalType: "bool",
-              name: "support",
-              type: "bool",
-            },
-            {
-              indexed: false,
-              internalType: "uint256",
-              name: "stake",
-              type: "uint256",
-            },
-          ],
-          name: "VoteCast",
-          type: "event",
-        },
-        {
-          inputs: [],
-          name: "CHALLENGE_PERIOD",
-          outputs: [
-            {
-              internalType: "uint256",
-              name: "",
-              type: "uint256",
-            },
-          ],
-          stateMutability: "view",
-          type: "function",
-        },
-        {
-          inputs: [],
-          name: "MIN_STAKE_AMOUNT",
-          outputs: [
-            {
-              internalType: "uint256",
-              name: "",
-              type: "uint256",
-            },
-          ],
-          stateMutability: "view",
-          type: "function",
-        },
-        {
-          inputs: [],
-          name: "REWARD_PERCENTAGE",
-          outputs: [
-            {
-              internalType: "uint256",
-              name: "",
-              type: "uint256",
-            },
-          ],
-          stateMutability: "view",
-          type: "function",
-        },
-        {
-          inputs: [
-            {
-              internalType: "address",
-              name: "",
-              type: "address",
-            },
-          ],
-          name: "agentStrategies",
-          outputs: [
-            {
-              internalType: "string",
-              name: "",
-              type: "string",
-            },
-          ],
-          stateMutability: "view",
-          type: "function",
-        },
-        {
-          inputs: [
-            {
-              internalType: "address",
-              name: "",
-              type: "address",
-            },
-          ],
-          name: "aiAgents",
-          outputs: [
-            {
-              internalType: "string",
-              name: "metadata",
-              type: "string",
-            },
-            {
-              internalType: "uint256",
-              name: "stake",
-              type: "uint256",
-            },
-            {
-              internalType: "bool",
-              name: "isListed",
-              type: "bool",
-            },
-            {
-              internalType: "uint256",
-              name: "challengeEndTime",
-              type: "uint256",
-            },
-            {
-              internalType: "address",
-              name: "challenger",
-              type: "address",
-            },
-            {
-              internalType: "uint256",
-              name: "challengeStake",
-              type: "uint256",
-            },
-            {
-              internalType: "uint256",
-              name: "votesFor",
-              type: "uint256",
-            },
-            {
-              internalType: "uint256",
-              name: "votesAgainst",
-              type: "uint256",
-            },
-            {
-              internalType: "uint256",
-              name: "totalVoterStakes",
-              type: "uint256",
-            },
-            {
-              internalType: "uint256",
-              name: "totalRatingPoints",
-              type: "uint256",
-            },
-            {
-              internalType: "uint256",
-              name: "totalFeedbacks",
-              type: "uint256",
-            },
-            {
-              internalType: "uint256",
-              name: "positiveAlignments",
-              type: "uint256",
-            },
-          ],
-          stateMutability: "view",
-          type: "function",
-        },
-        {
-          inputs: [
-            {
-              internalType: "address",
-              name: "modelAddress",
-              type: "address",
-            },
-            {
-              internalType: "uint256",
-              name: "stake",
-              type: "uint256",
-            },
-          ],
-          name: "challengeAgent",
-          outputs: [],
-          stateMutability: "nonpayable",
-          type: "function",
-        },
-        {
-          inputs: [
-            {
-              internalType: "address",
-              name: "modelAddress",
-              type: "address",
-            },
-          ],
-          name: "getAgent",
-          outputs: [
-            {
-              internalType: "string",
-              name: "metadata",
-              type: "string",
-            },
-            {
-              internalType: "uint256",
-              name: "stake",
-              type: "uint256",
-            },
-            {
-              internalType: "bool",
-              name: "isListed",
-              type: "bool",
-            },
-            {
-              internalType: "uint256",
-              name: "challengeEndTime",
-              type: "uint256",
-            },
-            {
-              internalType: "address",
-              name: "challenger",
-              type: "address",
-            },
-            {
-              internalType: "uint256",
-              name: "challengeStake",
-              type: "uint256",
-            },
-            {
-              internalType: "uint256",
-              name: "votesFor",
-              type: "uint256",
-            },
-            {
-              internalType: "uint256",
-              name: "votesAgainst",
-              type: "uint256",
-            },
-          ],
-          stateMutability: "view",
-          type: "function",
-        },
-        {
-          inputs: [
-            {
-              internalType: "address",
-              name: "modelAddress",
-              type: "address",
-            },
-          ],
-          name: "getAgentStats",
-          outputs: [
-            {
-              internalType: "uint256",
-              name: "totalFeedbacks",
-              type: "uint256",
-            },
-            {
-              internalType: "uint256",
-              name: "positiveAlignments",
-              type: "uint256",
-            },
-            {
-              internalType: "uint256",
-              name: "averageRating",
-              type: "uint256",
-            },
-          ],
-          stateMutability: "view",
-          type: "function",
-        },
-        {
-          inputs: [
-            {
-              internalType: "address",
-              name: "modelAddress",
-              type: "address",
-            },
-          ],
-          name: "getAgentStrategy",
-          outputs: [
-            {
-              internalType: "string",
-              name: "",
-              type: "string",
-            },
-          ],
-          stateMutability: "view",
-          type: "function",
-        },
-        {
-          inputs: [
-            {
-              internalType: "address",
-              name: "",
-              type: "address",
-            },
-            {
-              internalType: "address",
-              name: "",
-              type: "address",
-            },
-          ],
-          name: "hasVoted",
-          outputs: [
-            {
-              internalType: "bool",
-              name: "",
-              type: "bool",
-            },
-          ],
-          stateMutability: "view",
-          type: "function",
-        },
-        {
-          inputs: [
-            {
-              internalType: "uint256",
-              name: "additionalStake",
-              type: "uint256",
-            },
-          ],
-          name: "increaseStake",
-          outputs: [],
-          stateMutability: "nonpayable",
-          type: "function",
-        },
-        {
-          inputs: [
-            {
-              internalType: "address",
-              name: "",
-              type: "address",
-            },
-            {
-              internalType: "address",
-              name: "",
-              type: "address",
-            },
-          ],
-          name: "lastFeedbackTime",
-          outputs: [
-            {
-              internalType: "uint256",
-              name: "",
-              type: "uint256",
-            },
-          ],
-          stateMutability: "view",
-          type: "function",
-        },
-        {
-          inputs: [],
-          name: "musicToken",
-          outputs: [
-            {
-              internalType: "contract IERC20",
-              name: "",
-              type: "address",
-            },
-          ],
-          stateMutability: "view",
-          type: "function",
-        },
-        {
-          inputs: [],
-          name: "owner",
-          outputs: [
-            {
-              internalType: "address",
-              name: "",
-              type: "address",
-            },
-          ],
-          stateMutability: "view",
-          type: "function",
-        },
-        {
-          inputs: [],
-          name: "renounceOwnership",
-          outputs: [],
-          stateMutability: "nonpayable",
-          type: "function",
-        },
-        {
-          inputs: [
-            {
-              internalType: "address",
-              name: "modelAddress",
-              type: "address",
-            },
-          ],
-          name: "resolveChallenge",
-          outputs: [],
-          stateMutability: "nonpayable",
-          type: "function",
-        },
-        {
-          inputs: [
-            {
-              internalType: "string",
-              name: "metadata",
-              type: "string",
-            },
-            {
-              internalType: "string",
-              name: "strategy",
-              type: "string",
-            },
-            {
-              internalType: "uint256",
-              name: "stake",
-              type: "uint256",
-            },
-          ],
-          name: "submitAgent",
-          outputs: [],
-          stateMutability: "nonpayable",
-          type: "function",
-        },
-        {
-          inputs: [
-            {
-              internalType: "bool",
-              name: "alignsWithStrategy",
-              type: "bool",
-            },
-            {
-              internalType: "uint8",
-              name: "rating",
-              type: "uint8",
-            },
-            {
-              internalType: "string",
-              name: "comment",
-              type: "string",
-            },
-          ],
-          name: "submitFeedback",
-          outputs: [],
-          stateMutability: "nonpayable",
-          type: "function",
-        },
-        {
-          inputs: [
-            {
-              internalType: "address",
-              name: "newOwner",
-              type: "address",
-            },
-          ],
-          name: "transferOwnership",
-          outputs: [],
-          stateMutability: "nonpayable",
-          type: "function",
-        },
-        {
-          inputs: [
-            {
-              internalType: "address",
-              name: "modelAddress",
-              type: "address",
-            },
-            {
-              internalType: "string",
-              name: "strategy",
-              type: "string",
-            },
-          ],
-          name: "updateAgentStrategy",
-          outputs: [],
-          stateMutability: "nonpayable",
-          type: "function",
-        },
-        {
-          inputs: [
-            {
-              internalType: "address",
-              name: "modelAddress",
-              type: "address",
-            },
-            {
-              internalType: "bool",
-              name: "support",
-              type: "bool",
-            },
-            {
-              internalType: "uint256",
-              name: "stake",
-              type: "uint256",
-            },
-          ],
-          name: "vote",
-          outputs: [],
-          stateMutability: "nonpayable",
-          type: "function",
-        },
-        {
-          inputs: [
-            {
-              internalType: "address",
-              name: "",
-              type: "address",
-            },
-            {
-              internalType: "address",
-              name: "",
-              type: "address",
-            },
-          ],
-          name: "voterStakes",
-          outputs: [
-            {
-              internalType: "uint256",
-              name: "",
-              type: "uint256",
-            },
-          ],
-          stateMutability: "view",
-          type: "function",
-        },
-      ],
-      inheritedFunctions: {
-        owner: "@openzeppelin/contracts/access/Ownable.sol",
-        renounceOwnership: "@openzeppelin/contracts/access/Ownable.sol",
-        transferOwnership: "@openzeppelin/contracts/access/Ownable.sol",
-      },
-    },
-    AgentGovernance: {
-      address: "0x610178dA211FEF7D417bC0e6FeD39F05609AD788",
-      abi: [
-        {
-          inputs: [
-            {
-              internalType: "address",
-              name: "_musicToken",
-              type: "address",
-            },
-            {
-              internalType: "address",
-              name: "_agentRegistry",
-              type: "address",
-            },
-          ],
-          stateMutability: "nonpayable",
-          type: "constructor",
-        },
-        {
-          anonymous: false,
-          inputs: [
-            {
-              indexed: true,
-              internalType: "address",
-              name: "previousOwner",
-              type: "address",
-            },
-            {
-              indexed: true,
-              internalType: "address",
-              name: "newOwner",
-              type: "address",
-            },
-          ],
-          name: "OwnershipTransferred",
-          type: "event",
-        },
-        {
-          anonymous: false,
-          inputs: [
-            {
-              indexed: true,
-              internalType: "uint256",
-              name: "proposalId",
-              type: "uint256",
-            },
-            {
-              indexed: false,
-              internalType: "address",
-              name: "agentAddress",
-              type: "address",
-            },
-            {
-              indexed: false,
-              internalType: "string",
-              name: "description",
-              type: "string",
-            },
-            {
-              indexed: false,
-              internalType: "string",
-              name: "newStrategy",
-              type: "string",
-            },
-            {
-              indexed: false,
-              internalType: "address",
-              name: "proposer",
-              type: "address",
-            },
-          ],
-          name: "ProposalCreated",
-          type: "event",
-        },
-        {
-          anonymous: false,
-          inputs: [
-            {
-              indexed: true,
-              internalType: "uint256",
-              name: "proposalId",
-              type: "uint256",
-            },
-            {
-              indexed: false,
-              internalType: "address",
-              name: "agentAddress",
-              type: "address",
-            },
-            {
-              indexed: false,
-              internalType: "bool",
-              name: "accepted",
-              type: "bool",
-            },
-          ],
-          name: "ProposalExecuted",
-          type: "event",
-        },
-        {
-          anonymous: false,
-          inputs: [
-            {
-              indexed: true,
-              internalType: "uint256",
-              name: "proposalId",
-              type: "uint256",
-            },
-            {
-              indexed: false,
-              internalType: "address",
-              name: "voter",
-              type: "address",
-            },
-            {
-              indexed: false,
-              internalType: "bool",
-              name: "support",
-              type: "bool",
-            },
-          ],
-          name: "VoteCast",
-          type: "event",
-        },
-        {
-          inputs: [],
-          name: "MIN_TOKENS_TO_PROPOSE",
-          outputs: [
-            {
-              internalType: "uint256",
-              name: "",
-              type: "uint256",
-            },
-          ],
-          stateMutability: "view",
-          type: "function",
-        },
-        {
-          inputs: [],
-          name: "VOTING_PERIOD",
-          outputs: [
-            {
-              internalType: "uint256",
-              name: "",
-              type: "uint256",
-            },
-          ],
-          stateMutability: "view",
-          type: "function",
-        },
-        {
-          inputs: [],
-          name: "agentRegistry",
-          outputs: [
-            {
-              internalType: "contract IAIAgentRegistry",
-              name: "",
-              type: "address",
-            },
-          ],
-          stateMutability: "view",
-          type: "function",
-        },
-        {
-          inputs: [
-            {
-              internalType: "address",
-              name: "agentAddress",
-              type: "address",
-            },
-            {
-              internalType: "string",
-              name: "description",
-              type: "string",
-            },
-            {
-              internalType: "string",
-              name: "ipfsMetadata",
-              type: "string",
-            },
-            {
-              internalType: "string",
-              name: "newStrategy",
-              type: "string",
-            },
-          ],
-          name: "createProposal",
-          outputs: [],
-          stateMutability: "nonpayable",
-          type: "function",
-        },
-        {
-          inputs: [
-            {
-              internalType: "uint256",
-              name: "proposalId",
-              type: "uint256",
-            },
-          ],
-          name: "executeProposal",
-          outputs: [],
-          stateMutability: "nonpayable",
-          type: "function",
-        },
-        {
-          inputs: [
-            {
-              internalType: "uint256",
-              name: "proposalId",
-              type: "uint256",
-            },
-          ],
-          name: "getProposal",
-          outputs: [
-            {
-              internalType: "address",
-              name: "proposer",
-              type: "address",
-            },
-            {
-              internalType: "address",
-              name: "agentAddress",
-              type: "address",
-            },
-            {
-              internalType: "string",
-              name: "description",
-              type: "string",
-            },
-            {
-              internalType: "string",
-              name: "ipfsMetadata",
-              type: "string",
-            },
-            {
-              internalType: "string",
-              name: "newStrategy",
-              type: "string",
-            },
-            {
-              internalType: "uint256",
-              name: "votesFor",
-              type: "uint256",
-            },
-            {
-              internalType: "uint256",
-              name: "votesAgainst",
-              type: "uint256",
-            },
-            {
-              internalType: "uint256",
-              name: "endTime",
-              type: "uint256",
-            },
-            {
-              internalType: "bool",
-              name: "executed",
-              type: "bool",
-            },
-          ],
-          stateMutability: "view",
-          type: "function",
-        },
-        {
-          inputs: [
-            {
-              internalType: "uint256",
-              name: "proposalId",
-              type: "uint256",
-            },
-            {
-              internalType: "address",
-              name: "voter",
-              type: "address",
-            },
-          ],
-          name: "hasVoted",
-          outputs: [
-            {
-              internalType: "bool",
-              name: "",
-              type: "bool",
-            },
-          ],
-          stateMutability: "view",
-          type: "function",
-        },
-        {
-          inputs: [],
-          name: "musicToken",
-          outputs: [
-            {
-              internalType: "contract IERC20",
-              name: "",
-              type: "address",
-            },
-          ],
-          stateMutability: "view",
-          type: "function",
-        },
-        {
-          inputs: [],
-          name: "owner",
-          outputs: [
-            {
-              internalType: "address",
-              name: "",
-              type: "address",
-            },
-          ],
-          stateMutability: "view",
-          type: "function",
-        },
-        {
-          inputs: [],
-          name: "proposalCount",
-          outputs: [
-            {
-              internalType: "uint256",
-              name: "",
-              type: "uint256",
-            },
-          ],
-          stateMutability: "view",
-          type: "function",
-        },
-        {
-          inputs: [
-            {
-              internalType: "uint256",
-              name: "",
-              type: "uint256",
-            },
-          ],
-          name: "proposals",
-          outputs: [
-            {
-              internalType: "uint256",
-              name: "id",
-              type: "uint256",
-            },
-            {
-              internalType: "address",
-              name: "proposer",
-              type: "address",
-            },
-            {
-              internalType: "address",
-              name: "agentAddress",
-              type: "address",
-            },
-            {
-              internalType: "string",
-              name: "description",
-              type: "string",
-            },
-            {
-              internalType: "string",
-              name: "ipfsMetadata",
-              type: "string",
-            },
-            {
-              internalType: "uint256",
-              name: "votesFor",
-              type: "uint256",
-            },
-            {
-              internalType: "uint256",
-              name: "votesAgainst",
-              type: "uint256",
-            },
-            {
-              internalType: "uint256",
-              name: "startTime",
-              type: "uint256",
-            },
-            {
-              internalType: "uint256",
-              name: "endTime",
-              type: "uint256",
-            },
-            {
-              internalType: "bool",
-              name: "executed",
-              type: "bool",
-            },
-            {
-              internalType: "string",
-              name: "newStrategy",
-              type: "string",
-            },
-          ],
-          stateMutability: "view",
-          type: "function",
-        },
-        {
-          inputs: [],
-          name: "renounceOwnership",
-          outputs: [],
-          stateMutability: "nonpayable",
-          type: "function",
-        },
-        {
-          inputs: [
-            {
-              internalType: "address",
-              name: "newOwner",
-              type: "address",
-            },
-          ],
-          name: "transferOwnership",
-          outputs: [],
-          stateMutability: "nonpayable",
-          type: "function",
-        },
-        {
-          inputs: [
-            {
-              internalType: "uint256",
-              name: "proposalId",
-              type: "uint256",
-            },
-            {
-              internalType: "bool",
-              name: "support",
-              type: "bool",
-            },
-          ],
-          name: "vote",
-          outputs: [],
-          stateMutability: "nonpayable",
-          type: "function",
-        },
-      ],
-      inheritedFunctions: {
-        owner: "@openzeppelin/contracts/access/Ownable.sol",
-        renounceOwnership: "@openzeppelin/contracts/access/Ownable.sol",
-        transferOwnership: "@openzeppelin/contracts/access/Ownable.sol",
-      },
-    },
-    MusicToken: {
-      address: "0x2279B7A0a67DB372996a5FaB50D91eAA73d2eBe6",
-      abi: [
-        {
-          inputs: [
-            {
-              internalType: "uint256",
-              name: "initialSupply",
-              type: "uint256",
-            },
-          ],
-          stateMutability: "nonpayable",
-          type: "constructor",
-        },
-        {
-          anonymous: false,
-          inputs: [
-            {
-              indexed: true,
-              internalType: "address",
-              name: "owner",
-              type: "address",
-            },
-            {
-              indexed: true,
-              internalType: "address",
-              name: "spender",
-              type: "address",
-            },
-            {
-              indexed: false,
-              internalType: "uint256",
-              name: "value",
-              type: "uint256",
-            },
-          ],
-          name: "Approval",
-          type: "event",
-        },
-        {
-          anonymous: false,
-          inputs: [
-            {
-              indexed: true,
-              internalType: "address",
-              name: "from",
-              type: "address",
-            },
-            {
-              indexed: true,
-              internalType: "address",
-              name: "to",
-              type: "address",
-            },
-            {
-              indexed: false,
-              internalType: "uint256",
-              name: "value",
-              type: "uint256",
-            },
-          ],
-          name: "Transfer",
-          type: "event",
-        },
-        {
-          inputs: [
-            {
-              internalType: "address",
-              name: "owner",
-              type: "address",
-            },
-            {
-              internalType: "address",
-              name: "spender",
-              type: "address",
-            },
-          ],
-          name: "allowance",
-          outputs: [
-            {
-              internalType: "uint256",
-              name: "",
-              type: "uint256",
-            },
-          ],
-          stateMutability: "view",
-          type: "function",
-        },
-        {
-          inputs: [
-            {
-              internalType: "address",
-              name: "spender",
-              type: "address",
-            },
-            {
-              internalType: "uint256",
-              name: "amount",
-              type: "uint256",
-            },
-          ],
-          name: "approve",
-          outputs: [
-            {
-              internalType: "bool",
-              name: "",
-              type: "bool",
-            },
-          ],
-          stateMutability: "nonpayable",
-          type: "function",
-        },
-        {
-          inputs: [
-            {
-              internalType: "address",
-              name: "account",
-              type: "address",
-            },
-          ],
-          name: "balanceOf",
-          outputs: [
-            {
-              internalType: "uint256",
-              name: "",
-              type: "uint256",
-            },
-          ],
-          stateMutability: "view",
-          type: "function",
-        },
-        {
-          inputs: [],
-          name: "decimals",
-          outputs: [
-            {
-              internalType: "uint8",
-              name: "",
-              type: "uint8",
-            },
-          ],
-          stateMutability: "view",
-          type: "function",
-        },
-        {
-          inputs: [
-            {
-              internalType: "address",
-              name: "spender",
-              type: "address",
-            },
-            {
-              internalType: "uint256",
-              name: "subtractedValue",
-              type: "uint256",
-            },
-          ],
-          name: "decreaseAllowance",
-          outputs: [
-            {
-              internalType: "bool",
-              name: "",
-              type: "bool",
-            },
-          ],
-          stateMutability: "nonpayable",
-          type: "function",
-        },
-        {
-          inputs: [
-            {
-              internalType: "address",
-              name: "spender",
-              type: "address",
-            },
-            {
-              internalType: "uint256",
-              name: "addedValue",
-              type: "uint256",
-            },
-          ],
-          name: "increaseAllowance",
-          outputs: [
-            {
-              internalType: "bool",
-              name: "",
-              type: "bool",
-            },
-          ],
-          stateMutability: "nonpayable",
-          type: "function",
-        },
-        {
-          inputs: [],
-          name: "name",
-          outputs: [
-            {
-              internalType: "string",
-              name: "",
-              type: "string",
-            },
-          ],
-          stateMutability: "view",
-          type: "function",
-        },
-        {
-          inputs: [],
-          name: "symbol",
-          outputs: [
-            {
-              internalType: "string",
-              name: "",
-              type: "string",
-            },
-          ],
-          stateMutability: "view",
-          type: "function",
-        },
-        {
-          inputs: [],
-          name: "totalSupply",
-          outputs: [
-            {
-              internalType: "uint256",
-              name: "",
-              type: "uint256",
-            },
-          ],
-          stateMutability: "view",
-          type: "function",
-        },
-        {
-          inputs: [
-            {
-              internalType: "address",
-              name: "to",
-              type: "address",
-            },
-            {
-              internalType: "uint256",
-              name: "amount",
-              type: "uint256",
-            },
-          ],
-          name: "transfer",
-          outputs: [
-            {
-              internalType: "bool",
-              name: "",
-              type: "bool",
-            },
-          ],
-          stateMutability: "nonpayable",
-          type: "function",
-        },
-        {
-          inputs: [
-            {
-              internalType: "address",
-              name: "from",
-              type: "address",
-            },
-            {
-              internalType: "address",
-              name: "to",
-              type: "address",
-            },
-            {
-              internalType: "uint256",
-              name: "amount",
-              type: "uint256",
-            },
-          ],
-          name: "transferFrom",
-          outputs: [
-            {
-              internalType: "bool",
-              name: "",
-              type: "bool",
-            },
-          ],
-          stateMutability: "nonpayable",
-          type: "function",
-        },
-      ],
-      inheritedFunctions: {
-        allowance: "@openzeppelin/contracts/token/ERC20/ERC20.sol",
-        approve: "@openzeppelin/contracts/token/ERC20/ERC20.sol",
-        balanceOf: "@openzeppelin/contracts/token/ERC20/ERC20.sol",
-        decimals: "@openzeppelin/contracts/token/ERC20/ERC20.sol",
-        decreaseAllowance: "@openzeppelin/contracts/token/ERC20/ERC20.sol",
-        increaseAllowance: "@openzeppelin/contracts/token/ERC20/ERC20.sol",
-        name: "@openzeppelin/contracts/token/ERC20/ERC20.sol",
-        symbol: "@openzeppelin/contracts/token/ERC20/ERC20.sol",
-        totalSupply: "@openzeppelin/contracts/token/ERC20/ERC20.sol",
-        transfer: "@openzeppelin/contracts/token/ERC20/ERC20.sol",
-        transferFrom: "@openzeppelin/contracts/token/ERC20/ERC20.sol",
-      },
-    },
-  },
   84532: {
     AIAgentRegistry: {
-      address: "0xC4F8CC4b1D595Cce07166F892FAF9Fa7f7067ab8",
+      address: "0x43E39Bc12C41af967b3fCC3f8cF5a7b02e8898c2",
       abi: [
         {
           inputs: [
@@ -1483,9 +25,9 @@ const deployedContracts = {
           inputs: [
             {
               indexed: true,
-              internalType: "string",
-              name: "modelHash",
-              type: "string",
+              internalType: "address",
+              name: "modelAddress",
+              type: "address",
             },
             {
               indexed: false,
@@ -1508,14 +50,8 @@ const deployedContracts = {
           inputs: [
             {
               indexed: false,
-              internalType: "string",
-              name: "modelHash",
-              type: "string",
-            },
-            {
-              indexed: false,
               internalType: "address",
-              name: "owner",
+              name: "modelAddress",
               type: "address",
             },
             {
@@ -1530,6 +66,12 @@ const deployedContracts = {
               name: "metadata",
               type: "string",
             },
+            {
+              indexed: false,
+              internalType: "string",
+              name: "strategy",
+              type: "string",
+            },
           ],
           name: "AgentSubmitted",
           type: "event",
@@ -1539,9 +81,9 @@ const deployedContracts = {
           inputs: [
             {
               indexed: true,
-              internalType: "string",
-              name: "modelHash",
-              type: "string",
+              internalType: "address",
+              name: "modelAddress",
+              type: "address",
             },
             {
               indexed: false,
@@ -1570,14 +112,8 @@ const deployedContracts = {
           inputs: [
             {
               indexed: true,
-              internalType: "string",
-              name: "modelHash",
-              type: "string",
-            },
-            {
-              indexed: true,
               internalType: "address",
-              name: "user",
+              name: "modelAddress",
               type: "address",
             },
             {
@@ -1632,9 +168,9 @@ const deployedContracts = {
           inputs: [
             {
               indexed: true,
-              internalType: "string",
-              name: "modelHash",
-              type: "string",
+              internalType: "address",
+              name: "modelAddress",
+              type: "address",
             },
             {
               indexed: false,
@@ -1651,14 +187,14 @@ const deployedContracts = {
           inputs: [
             {
               indexed: true,
-              internalType: "string",
-              name: "modelHash",
-              type: "string",
+              internalType: "address",
+              name: "modelAddress",
+              type: "address",
             },
             {
               indexed: false,
               internalType: "string",
-              name: "newStrategyHash",
+              name: "newStrategy",
               type: "string",
             },
           ],
@@ -1670,9 +206,9 @@ const deployedContracts = {
           inputs: [
             {
               indexed: true,
-              internalType: "string",
-              name: "modelHash",
-              type: "string",
+              internalType: "address",
+              name: "modelAddress",
+              type: "address",
             },
             {
               indexed: false,
@@ -1699,19 +235,6 @@ const deployedContracts = {
         {
           inputs: [],
           name: "CHALLENGE_PERIOD",
-          outputs: [
-            {
-              internalType: "uint256",
-              name: "",
-              type: "uint256",
-            },
-          ],
-          stateMutability: "view",
-          type: "function",
-        },
-        {
-          inputs: [],
-          name: "FEEDBACK_COOLDOWN",
           outputs: [
             {
               internalType: "uint256",
@@ -1751,9 +274,9 @@ const deployedContracts = {
         {
           inputs: [
             {
-              internalType: "string",
+              internalType: "address",
               name: "",
-              type: "string",
+              type: "address",
             },
           ],
           name: "agentStrategies",
@@ -1770,23 +293,13 @@ const deployedContracts = {
         {
           inputs: [
             {
-              internalType: "string",
+              internalType: "address",
               name: "",
-              type: "string",
+              type: "address",
             },
           ],
           name: "aiAgents",
           outputs: [
-            {
-              internalType: "address",
-              name: "owner",
-              type: "address",
-            },
-            {
-              internalType: "string",
-              name: "modelHash",
-              type: "string",
-            },
             {
               internalType: "string",
               name: "metadata",
@@ -1833,11 +346,6 @@ const deployedContracts = {
               type: "uint256",
             },
             {
-              internalType: "string",
-              name: "initialStrategy",
-              type: "string",
-            },
-            {
               internalType: "uint256",
               name: "totalRatingPoints",
               type: "uint256",
@@ -1859,9 +367,9 @@ const deployedContracts = {
         {
           inputs: [
             {
-              internalType: "string",
-              name: "modelHash",
-              type: "string",
+              internalType: "address",
+              name: "modelAddress",
+              type: "address",
             },
             {
               internalType: "uint256",
@@ -1877,18 +385,13 @@ const deployedContracts = {
         {
           inputs: [
             {
-              internalType: "string",
-              name: "modelHash",
-              type: "string",
+              internalType: "address",
+              name: "modelAddress",
+              type: "address",
             },
           ],
           name: "getAgent",
           outputs: [
-            {
-              internalType: "address",
-              name: "owner",
-              type: "address",
-            },
             {
               internalType: "string",
               name: "metadata",
@@ -1936,9 +439,9 @@ const deployedContracts = {
         {
           inputs: [
             {
-              internalType: "string",
-              name: "modelHash",
-              type: "string",
+              internalType: "address",
+              name: "modelAddress",
+              type: "address",
             },
           ],
           name: "getAgentStats",
@@ -1965,9 +468,9 @@ const deployedContracts = {
         {
           inputs: [
             {
-              internalType: "string",
-              name: "modelHash",
-              type: "string",
+              internalType: "address",
+              name: "modelAddress",
+              type: "address",
             },
           ],
           name: "getAgentStrategy",
@@ -1984,9 +487,9 @@ const deployedContracts = {
         {
           inputs: [
             {
-              internalType: "string",
+              internalType: "address",
               name: "",
-              type: "string",
+              type: "address",
             },
             {
               internalType: "address",
@@ -2008,11 +511,6 @@ const deployedContracts = {
         {
           inputs: [
             {
-              internalType: "string",
-              name: "modelHash",
-              type: "string",
-            },
-            {
               internalType: "uint256",
               name: "additionalStake",
               type: "uint256",
@@ -2026,9 +524,9 @@ const deployedContracts = {
         {
           inputs: [
             {
-              internalType: "string",
+              internalType: "address",
               name: "",
-              type: "string",
+              type: "address",
             },
             {
               internalType: "address",
@@ -2083,9 +581,9 @@ const deployedContracts = {
         {
           inputs: [
             {
-              internalType: "string",
-              name: "modelHash",
-              type: "string",
+              internalType: "address",
+              name: "modelAddress",
+              type: "address",
             },
           ],
           name: "resolveChallenge",
@@ -2097,17 +595,12 @@ const deployedContracts = {
           inputs: [
             {
               internalType: "string",
-              name: "modelHash",
-              type: "string",
-            },
-            {
-              internalType: "string",
               name: "metadata",
               type: "string",
             },
             {
               internalType: "string",
-              name: "initialStrategy",
+              name: "strategy",
               type: "string",
             },
             {
@@ -2123,11 +616,6 @@ const deployedContracts = {
         },
         {
           inputs: [
-            {
-              internalType: "string",
-              name: "modelHash",
-              type: "string",
-            },
             {
               internalType: "bool",
               name: "alignsWithStrategy",
@@ -2165,13 +653,13 @@ const deployedContracts = {
         {
           inputs: [
             {
-              internalType: "string",
-              name: "modelHash",
-              type: "string",
+              internalType: "address",
+              name: "modelAddress",
+              type: "address",
             },
             {
               internalType: "string",
-              name: "strategyHash",
+              name: "strategy",
               type: "string",
             },
           ],
@@ -2183,9 +671,9 @@ const deployedContracts = {
         {
           inputs: [
             {
-              internalType: "string",
-              name: "modelHash",
-              type: "string",
+              internalType: "address",
+              name: "modelAddress",
+              type: "address",
             },
             {
               internalType: "bool",
@@ -2206,9 +694,9 @@ const deployedContracts = {
         {
           inputs: [
             {
-              internalType: "string",
+              internalType: "address",
               name: "",
-              type: "string",
+              type: "address",
             },
             {
               internalType: "address",
@@ -2235,7 +723,7 @@ const deployedContracts = {
       },
     },
     AgentGovernance: {
-      address: "0xe8A47E4Ada2C29A7AD07417140EdCcc63D45ca7e",
+      address: "0x4e02dE0C6DaA8Cd746dDd249649C04544D79f526",
       abi: [
         {
           inputs: [
@@ -2283,14 +771,20 @@ const deployedContracts = {
             },
             {
               indexed: false,
-              internalType: "string",
-              name: "agentHash",
-              type: "string",
+              internalType: "address",
+              name: "agentAddress",
+              type: "address",
             },
             {
               indexed: false,
               internalType: "string",
               name: "description",
+              type: "string",
+            },
+            {
+              indexed: false,
+              internalType: "string",
+              name: "newStrategy",
               type: "string",
             },
             {
@@ -2314,9 +808,9 @@ const deployedContracts = {
             },
             {
               indexed: false,
-              internalType: "string",
-              name: "agentHash",
-              type: "string",
+              internalType: "address",
+              name: "agentAddress",
+              type: "address",
             },
             {
               indexed: false,
@@ -2395,9 +889,9 @@ const deployedContracts = {
         {
           inputs: [
             {
-              internalType: "string",
-              name: "agentHash",
-              type: "string",
+              internalType: "address",
+              name: "agentAddress",
+              type: "address",
             },
             {
               internalType: "string",
@@ -2407,38 +901,15 @@ const deployedContracts = {
             {
               internalType: "string",
               name: "ipfsMetadata",
+              type: "string",
+            },
+            {
+              internalType: "string",
+              name: "newStrategy",
               type: "string",
             },
           ],
           name: "createProposal",
-          outputs: [],
-          stateMutability: "nonpayable",
-          type: "function",
-        },
-        {
-          inputs: [
-            {
-              internalType: "string",
-              name: "agentHash",
-              type: "string",
-            },
-            {
-              internalType: "string",
-              name: "description",
-              type: "string",
-            },
-            {
-              internalType: "string",
-              name: "ipfsMetadata",
-              type: "string",
-            },
-            {
-              internalType: "string",
-              name: "newStrategyHash",
-              type: "string",
-            },
-          ],
-          name: "createStrategyProposal",
           outputs: [],
           stateMutability: "nonpayable",
           type: "function",
@@ -2472,9 +943,9 @@ const deployedContracts = {
               type: "address",
             },
             {
-              internalType: "string",
-              name: "agentHash",
-              type: "string",
+              internalType: "address",
+              name: "agentAddress",
+              type: "address",
             },
             {
               internalType: "string",
@@ -2484,6 +955,11 @@ const deployedContracts = {
             {
               internalType: "string",
               name: "ipfsMetadata",
+              type: "string",
+            },
+            {
+              internalType: "string",
+              name: "newStrategy",
               type: "string",
             },
             {
@@ -2594,9 +1070,9 @@ const deployedContracts = {
               type: "address",
             },
             {
-              internalType: "string",
-              name: "agentHash",
-              type: "string",
+              internalType: "address",
+              name: "agentAddress",
+              type: "address",
             },
             {
               internalType: "string",
@@ -2635,13 +1111,8 @@ const deployedContracts = {
             },
             {
               internalType: "string",
-              name: "newStrategyHash",
+              name: "newStrategy",
               type: "string",
-            },
-            {
-              internalType: "enum AgentGovernance.ProposalType",
-              name: "proposalType",
-              type: "uint8",
             },
           ],
           stateMutability: "view",
