@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { FeedbackModal } from "./FeedbackModal";
 import { useAccount } from "wagmi";
 
@@ -20,6 +20,45 @@ export const ChatInterface = ({ agentAddress }: ChatInterfaceProps) => {
   const [isLoading, setIsLoading] = useState(false);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [lastRecommendation, setLastRecommendation] = useState("");
+  const [agentStatus, setAgentStatus] = useState<"loading" | "ready" | "error">("loading");
+
+  useEffect(() => {
+    const checkAgentStatus = async () => {
+      if (!address) return;
+      
+      try {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_AGENT_SERVER_URL}/agent/status/${agentAddress}`, {
+          headers: {
+            "X-User-Address": address,
+          },
+        });
+        
+        if (!response.ok) throw new Error("Failed to check agent status");
+        
+        const data = await response.json();
+        setAgentStatus(data.status === "ready" ? "ready" : "error");
+      } catch (error) {
+        console.error("Error checking agent status:", error);
+        setAgentStatus("error");
+      }
+    };
+
+    if (address) {
+      checkAgentStatus();
+    }
+  }, [agentAddress, address]);
+
+  if (agentStatus === "loading") {
+    return <div className="loading loading-spinner loading-lg"></div>;
+  }
+
+  if (agentStatus === "error") {
+    return (
+      <div className="alert alert-error">
+        <p>Failed to initialize agent. Please try again later.</p>
+      </div>
+    );
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,7 +70,7 @@ export const ChatInterface = ({ agentAddress }: ChatInterfaceProps) => {
     setIsLoading(true);
 
     try {
-      const response = await fetch("/api/chat", {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_AGENT_SERVER_URL}/chat`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -61,14 +100,6 @@ export const ChatInterface = ({ agentAddress }: ChatInterfaceProps) => {
       setIsLoading(false);
     }
   };
-
-  if (!address) {
-    return (
-      <div className="bg-base-200 rounded-lg p-4 text-center">
-        <p>Please connect your wallet to chat with the agent.</p>
-      </div>
-    );
-  }
 
   return (
     <>

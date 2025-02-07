@@ -8,11 +8,18 @@ import { agentRegistry } from "./agent-registry";
 import * as dotenv from "dotenv";
 import * as fs from "fs";
 import * as path from "path";
+import cors from "cors";
 
 dotenv.config();
 
 const app = express();
 app.use(express.json());
+app.use(cors({
+  origin: process.env.FRONTEND_URL || "http://localhost:3000",
+  credentials: true,
+  methods: ["GET", "POST"],
+  allowedHeaders: ["Content-Type", "X-User-Address"]
+}));
 
 // Store initialized agents
 const agents = new Map<string, { agent: any; config: any }>();
@@ -110,19 +117,69 @@ app.post("/agent/initialize", verifyStaker, async (req, res) => {
       return res.status(401).json({ error: "Unauthorized to initialize this agent" });
     }
 
+
+    //check if agent is already registered
+    const isRegistered = await agentRegistry.checkAgentRegistration(agentAddress);
+    if (isRegistered) {
+      //check if agent is initialized
+      let agentInstance = agents.get(agentAddress);
+      if (agentInstance) {
+        return res.status(200).json({ message: "Agent already initialized" });
+      } else {
+        try {
+          const requestingAddress = req.headers["x-user-address"] as string;
+          const walletData = await agentRegistry.getAgentWallet(agentAddress, requestingAddress);
+          if (!walletData) {
+            return res.status(401).json({ error: "Unauthorized to interact with this agent" });
+          }
+          const { agent, config } = await initializeAgent(walletData);
+          agentInstance = { agent, config };
+          agents.set(agentAddress, agentInstance);
+          console.log(`Agent instance spun up on-demand for address: ${agentAddress}`);
+          return res.status(200).json({ message: "Agent initialized" });
+        } catch (error) {
+          console.error("Failed to initialize agent instance:", error);
+          return res.status(500).json({ 
+            error: "Failed to initialize agent instance",
+            details: error instanceof Error ? error.message : "Unknown error"
+          });
+        }
+      }
+    }
+
+    
+
     // Check balance
     const balance = await agentRegistry.checkAgentBalance(agentAddress);
     if (balance <= 0n) {
       return res.status(400).json({ error: "Agent wallet not funded" });
     }
 
-    // Initialize agent
+    // Initialize agent in registry
     const success = await agentRegistry.initializeAgent(agentAddress);
     if (!success) {
       return res.status(500).json({ error: "Failed to initialize agent" });
     }
 
-    res.json({ message: "Agent initialized successfully" });
+    const walletDataForAgent = walletData.walletData;
+
+    // Spin up the agent instance
+    try {
+      const { agent, config } = await initializeAgent(walletDataForAgent);
+      agents.set(agentAddress, { agent, config });
+      console.log(`Agent instance spun up successfully for address: ${agentAddress}`);
+    } catch (error) {
+      console.error("Failed to spin up agent instance:", error);
+      return res.status(500).json({ 
+        error: "Agent registered but failed to spin up instance",
+        details: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+
+    res.json({ 
+      message: "Agent initialized and spun up successfully",
+      status: "ready"
+    });
   } catch (error) {
     console.error("Error initializing agent:", error);
     res.status(500).json({ error: "Failed to initialize agent" });
@@ -152,29 +209,57 @@ app.get("/agent/status", async (req, res) => {
   }
 });
 
+// Add this endpoint to check agent status
+app.get("/agent/status/:address", async (req, res) => {
+  try {
+    const agentAddress = req.params.address;
+    const isRegistered = await agentRegistry.checkAgentRegistration(agentAddress);
+    const isInitialized = agents.has(agentAddress);
+    
+    res.json({
+      isRegistered,
+      isInitialized,
+      status: isInitialized ? "ready" : (isRegistered ? "registered" : "not_registered")
+    });
+  } catch (error) {
+    console.log("Error checking agent status:", error);
+    res.status(500).json({ error: "Failed to check agent status" });
+  }
+});
+
 // Get or initialize agent instance
 async function getOrInitializeAgent(agentAddress: string) {
+  // Check cache first
   if (agents.has(agentAddress)) {
     return agents.get(agentAddress)!;
   }
 
-  // Check if agent is registered
-  const isRegistered = await agentRegistry.checkAgentRegistration(agentAddress);
-  if (!isRegistered) {
-    throw new Error("Agent not registered");
+  try {
+    // Check if agent is registered
+    const isRegistered = await agentRegistry.checkAgentRegistration(agentAddress);
+    if (!isRegistered) {
+      throw new Error("Agent not registered");
+    }
+
+    // Get agent wallet data from the agents directory
+    const walletPath = path.join(process.cwd(), "agents-wallets", `${agentAddress}-wallet.json`);
+    if (!fs.existsSync(walletPath)) {
+      throw new Error("Agent wallet not found");
+    }
+
+    // Load agent data including wallet and config
+    const agentData = JSON.parse(fs.readFileSync(walletPath, "utf8"));
+    
+    // Initialize the agent with the wallet data
+    const { agent, config } = await initializeAgent(agentData.walletData);
+
+    // Cache the initialized agent
+    agents.set(agentAddress, { agent, config });
+    return { agent, config };
+  } catch (error) {
+    console.error("Error initializing agent:", error);
+    throw error;
   }
-
-  // Get agent wallet data
-  const walletPath = path.join(process.cwd(), "agents", `${agentAddress}-wallet.json`);
-  if (!fs.existsSync(walletPath)) {
-    throw new Error("Agent wallet not found");
-  }
-
-  const agentData = JSON.parse(fs.readFileSync(walletPath, "utf8"));
-  const { agent, config } = await initializeAgent(agentData.walletData);
-
-  agents.set(agentAddress, { agent, config });
-  return { agent, config };
 }
 
 // Chat endpoint with staker verification
@@ -186,7 +271,38 @@ app.post("/chat", verifyStaker, async (req, res) => {
       return res.status(400).json({ error: "Message and agent address are required" });
     }
 
-    const { agent, config } = await getOrInitializeAgent(agentAddress);
+    // Check if agent is registered and initialized
+    const isRegistered = await agentRegistry.checkAgentRegistration(agentAddress);
+    if (!isRegistered) {
+      return res.status(404).json({ 
+        error: "Agent not found",
+        details: "This agent is not registered in the AI Agent Registry"
+      });
+    }
+
+    let agentInstance = agents.get(agentAddress);
+
+    // If agent is registered but not initialized in memory, try to initialize it
+    if (!agentInstance) {
+      try {
+        const requestingAddress = req.headers["x-user-address"] as string;
+        const walletData = await agentRegistry.getAgentWallet(agentAddress, requestingAddress);
+        if (!walletData) {
+          return res.status(401).json({ error: "Unauthorized to interact with this agent" });
+        }
+
+        const { agent, config } = await initializeAgent(walletData.walletData);
+        agentInstance = { agent, config };
+        agents.set(agentAddress, agentInstance);
+        console.log(`Agent instance spun up on-demand for address: ${agentAddress}`);
+      } catch (error) {
+        console.error("Failed to initialize agent instance:", error);
+        return res.status(500).json({ 
+          error: "Failed to initialize agent instance",
+          details: error instanceof Error ? error.message : "Unknown error"
+        });
+      }
+    }
 
     // Construct the message based on whether it's a feedback submission or regular chat
     let userMessage = message;
@@ -197,7 +313,10 @@ app.post("/chat", verifyStaker, async (req, res) => {
         - Comment: ${feedback.comment}`;
     }
 
-    const stream = await agent.stream({ messages: [new HumanMessage(userMessage)] }, config);
+    const stream = await agentInstance.agent.stream(
+      { messages: [new HumanMessage(userMessage)] }, 
+      agentInstance.config
+    );
 
     const response = [];
     for await (const chunk of stream) {

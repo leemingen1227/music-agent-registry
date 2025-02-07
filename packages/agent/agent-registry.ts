@@ -139,6 +139,9 @@ export class AgentRegistry {
         throw new Error(`Insufficient balance. Has: ${balance}, Needs: ${minimumStake}`);
       }
 
+      const parseStake = ethers.parseEther(config.stake.toString());
+
+
       // Approve token spending
       const tokenAddress = process.env.MUSIC_TOKEN_ADDRESS! as Address;
       const registryAddress = process.env.AI_AGENT_REGISTRY_ADDRESS! as Address;
@@ -148,7 +151,7 @@ export class AgentRegistry {
         method: "approve",
         args: {
           spender: registryAddress,
-          amount: config.stake.toString()
+          amount: parseStake.toString()
         },
         abi: MusicTokenABI
       });
@@ -162,7 +165,7 @@ export class AgentRegistry {
         args: {
           metadata: config.metadata,
           strategy: config.strategy,
-          stake: config.stake.toString()
+          stake: parseStake.toString()
         },
         abi: AIAgentRegistryABI
       });

@@ -184,6 +184,7 @@ async function getAgentData(walletProvider: CdpWalletProvider): Promise<{ strate
     const networkId = process.env.NETWORK_ID || "base-sepolia";
     const registryAddress = process.env.AI_AGENT_REGISTRY_ADDRESS! as Address;
     const agentAddress = walletProvider.getAddress();
+    console.log("agentAddress", agentAddress);
 
     // Get agent's strategy
     const strategy = (await readContract({
@@ -251,11 +252,17 @@ export async function initializeAgent(walletData: any) {
     const config = {
       apiKeyName: process.env.CDP_API_KEY_NAME,
       apiKeyPrivateKey: process.env.CDP_API_KEY_PRIVATE_KEY?.replace(/\\n/g, "\n"),
-      cdpWalletData: walletData,
+      cdpWalletData: JSON.stringify(walletData),
       networkId: process.env.NETWORK_ID || "base-sepolia"
     };
 
     const walletProvider = await CdpWalletProvider.configureWithWallet(config);
+
+    const exportedWallet = await walletProvider.exportWallet();
+    console.log("exportedWallet", exportedWallet);
+
+    console.log("walletData", walletData);
+    console.log("walletProvider address", walletProvider.getAddress());
 
     // Verify wallet is properly initialized
     const address = walletProvider.getAddress();

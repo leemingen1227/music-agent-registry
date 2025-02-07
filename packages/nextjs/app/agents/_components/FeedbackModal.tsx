@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useAccount } from "wagmi";
 
 interface FeedbackModalProps {
   agentAddress: string;
@@ -10,6 +11,7 @@ interface FeedbackModalProps {
 }
 
 export const FeedbackModal = ({ agentAddress, isOpen, onClose, lastRecommendation }: FeedbackModalProps) => {
+  const { address } = useAccount();
   const [feedback, setFeedback] = useState({
     alignsWithStrategy: true,
     rating: 5,
@@ -19,12 +21,15 @@ export const FeedbackModal = ({ agentAddress, isOpen, onClose, lastRecommendatio
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!address) return;
+    
     setIsSubmitting(true);
     try {
-      const response = await fetch("/api/chat", {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_AGENT_SERVER_URL}/chat`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          "X-User-Address": address,
         },
         body: JSON.stringify({
           message: `Submit feedback for your last recommendation with the following details:
@@ -108,7 +113,7 @@ export const FeedbackModal = ({ agentAddress, isOpen, onClose, lastRecommendatio
             <button
               type="submit"
               className={`btn btn-primary flex-1 ${isSubmitting ? "loading" : ""}`}
-              disabled={isSubmitting}
+              disabled={isSubmitting || !address}
             >
               Submit Feedback
             </button>
