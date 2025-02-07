@@ -1,4 +1,7 @@
+"use client";
+
 import { create } from "zustand";
+import { createJSONStorage, persist } from "zustand/middleware";
 import scaffoldConfig from "~~/scaffold.config";
 import { ChainWithAttributes } from "~~/utils/scaffold-eth";
 
@@ -22,15 +25,23 @@ type GlobalState = {
   setTargetNetwork: (newTargetNetwork: ChainWithAttributes) => void;
 };
 
-export const useGlobalState = create<GlobalState>(set => ({
-  nativeCurrency: {
-    price: 0,
-    isFetching: true,
-  },
-  setNativeCurrencyPrice: (newValue: number): void =>
-    set(state => ({ nativeCurrency: { ...state.nativeCurrency, price: newValue } })),
-  setIsNativeCurrencyFetching: (newValue: boolean): void =>
-    set(state => ({ nativeCurrency: { ...state.nativeCurrency, isFetching: newValue } })),
-  targetNetwork: scaffoldConfig.targetNetworks[0],
-  setTargetNetwork: (newTargetNetwork: ChainWithAttributes) => set(() => ({ targetNetwork: newTargetNetwork })),
-}));
+export const useGlobalState = create<GlobalState>()(
+  persist(
+    set => ({
+      nativeCurrency: {
+        price: 0,
+        isFetching: true,
+      },
+      setNativeCurrencyPrice: (newValue: number): void =>
+        set(state => ({ nativeCurrency: { ...state.nativeCurrency, price: newValue } })),
+      setIsNativeCurrencyFetching: (newValue: boolean): void =>
+        set(state => ({ nativeCurrency: { ...state.nativeCurrency, isFetching: newValue } })),
+      targetNetwork: scaffoldConfig.targetNetworks[0],
+      setTargetNetwork: (newTargetNetwork: ChainWithAttributes) => set(() => ({ targetNetwork: newTargetNetwork })),
+    }),
+    {
+      name: "scaffold-eth-2-store",
+      storage: createJSONStorage(() => localStorage),
+    },
+  ),
+);

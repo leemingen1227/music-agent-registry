@@ -68,7 +68,7 @@ const submitFeedbackProvider = customActionProvider<CdpWalletProvider>({
   schema: SubmitFeedbackSchema,
   invoke: async (walletProvider, args) => {
     try {
-      const walletData = JSON.parse(fs.readFileSync("wallet_data.txt", "utf8"));
+      const walletData = JSON.parse(fs.readFileSync(`${agentAddress}-wallet.json`, "utf8"));
       const wallet = await Wallet.import(walletData, process.env.NETWORK_ID || "base-sepolia");
 
       const feedbackArgs = {
@@ -177,9 +177,9 @@ function validateEnvironment(): void {
 validateEnvironment();
 
 // Configure files to persist data
-const WALLET_DATA_FILE = "wallet_data.txt";
+// const WALLET_DATA_FILE = "wallet_data.txt";
 
-async function getAgentData(agentkit: AgentKit, walletProvider: CdpWalletProvider): Promise<{ strategy: string; feedback: string }> {
+async function getAgentData(walletProvider: CdpWalletProvider): Promise<{ strategy: string; feedback: string }> {
   try {
     const networkId = process.env.NETWORK_ID || "base-sepolia";
     const registryAddress = process.env.AI_AGENT_REGISTRY_ADDRESS! as Address;
@@ -242,26 +242,16 @@ async function getAgentData(agentkit: AgentKit, walletProvider: CdpWalletProvide
 /**
  * Initialize the agent with CDP Agentkit and AI Agent Registry actions
  */
-async function initializeAgent() {
+export async function initializeAgent(walletData: any) {
   try {
     const llm = new ChatOpenAI({
       model: "gpt-4o-mini"
     });
 
-    let walletDataStr: string | null = null;
-
-    if (fs.existsSync(WALLET_DATA_FILE)) {
-      try {
-        walletDataStr = fs.readFileSync(WALLET_DATA_FILE, "utf8");
-      } catch (error) {
-        console.error("Error reading wallet data:", error);
-      }
-    }
-
     const config = {
       apiKeyName: process.env.CDP_API_KEY_NAME,
       apiKeyPrivateKey: process.env.CDP_API_KEY_PRIVATE_KEY?.replace(/\\n/g, "\n"),
-      cdpWalletData: walletDataStr || undefined,
+      cdpWalletData: walletData,
       networkId: process.env.NETWORK_ID || "base-sepolia"
     };
 
@@ -273,16 +263,6 @@ async function initializeAgent() {
     if (!address) {
       throw new Error("Failed to initialize wallet provider - no address available");
     }
-
-    // Request ETH from faucet for the wallet
-    const faucet = await cdpApiActionProvider({
-      apiKeyName: process.env.CDP_API_KEY_NAME,
-      apiKeyPrivateKey: process.env.CDP_API_KEY_PRIVATE_KEY?.replace(/\\n/g, "\n")
-    }).faucet(walletProvider, {
-      assetId: "eth" // Request ETH from the faucet
-    });
-
-    console.log("Faucet request:", faucet);
 
     console.log("Initialized wallet with address:", address);
 
@@ -307,23 +287,10 @@ async function initializeAgent() {
       ]
     });
 
-    // Initialize agent registration if needed
-    const registrationConfig = {
-      metadata: "test metadata",
-      strategy: "Recommend diverse music across genres with focus on user preferences",
-      stake: ethers.parseEther("100"),
-      initialFunding: ethers.parseEther("150") // Extra buffer above minimum stake
-    };
-
-    const registered = await agentRegistry.initializeAgentRegistration(agentAddress, registrationConfig);
-    if (!registered) {
-      throw new Error("Failed to initialize agent registration");
-    }
-
     const tools = await getLangChainTools(agentkit);
 
     // Get initial agent data using the provider's method
-    const agentData = await getAgentData(agentkit, walletProvider);
+    const agentData = await getAgentData(walletProvider);
 
     const memory = new MemorySaver();
     const agentConfig = { configurable: { thread_id: "AI Agent Registry Bot!" } };
@@ -333,7 +300,7 @@ async function initializeAgent() {
       tools,
       checkpointSaver: memory,
       messageModifier: `
-        You are a helpful agent that can interact with the AI Agent Registry on the blockchain.
+        You are a music recommendation agent that belongs to the AI Agent Registry on the blockchain.
         You can submit feedback for AI agents and retrieve their current strategies and performance data.
         
         Your address is ${walletProvider.getAddress()}
@@ -363,8 +330,8 @@ async function initializeAgent() {
     });
 
     // Save wallet data
-    const exportedWallet = await walletProvider.exportWallet();
-    fs.writeFileSync(WALLET_DATA_FILE, JSON.stringify(exportedWallet));
+    // const exportedWallet = await walletProvider.exportWallet();
+    // fs.writeFileSync(WALLET_DATA_FILE, JSON.stringify(exportedWallet));
 
     return { agent, config: agentConfig };
   } catch (error) {
@@ -480,7 +447,7 @@ async function chooseMode(): Promise<"chat" | "auto"> {
  */
 async function main() {
   try {
-    const { agent, config } = await initializeAgent();
+    const { agent, config } = await initializeAgent(null);
     const mode = await chooseMode();
 
     if (mode === "chat") {
@@ -504,4 +471,4 @@ if (require.main === module) {
   });
 }
 
-export { initializeAgent };
+export { getAgentData };

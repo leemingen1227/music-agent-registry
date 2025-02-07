@@ -1,3 +1,5 @@
+"use client";
+
 import scaffoldConfig from "~~/scaffold.config";
 import { useGlobalState } from "~~/services/store/store";
 import { AllowedChainIds } from "~~/utils/scaffold-eth";

@@ -4,7 +4,7 @@ import React, { useCallback, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Bars3Icon, BugAntIcon } from "@heroicons/react/24/outline";
+import { Bars3Icon, BugAntIcon, UserCircleIcon, UserGroupIcon } from "@heroicons/react/24/outline";
 import { FaucetButton, RainbowKitCustomConnectButton } from "~~/components/scaffold-eth";
 import { useOutsideClick } from "~~/hooks/scaffold-eth";
 
@@ -20,11 +20,20 @@ export const menuLinks: HeaderMenuLink[] = [
     href: "/",
   },
   {
+    label: "AI Agent Registry",
+    href: "/agent-registry",
+    icon: <UserCircleIcon className="h-4 w-4" />,
+  },
+  {
+    label: "Agents Directory",
+    href: "/agents",
+    icon: <UserGroupIcon className="h-4 w-4" />,
+  },
+  {
     label: "Events",
     href: "/events",
     icon: <BugAntIcon className="h-4 w-4" />,
   },
-
   {
     label: "Debug Contracts",
     href: "/debug",

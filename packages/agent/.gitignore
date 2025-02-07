@@ -3,3 +3,6 @@ node_modules
 
 # env files
 .env
+
+# wallet data
+agents-wallets
