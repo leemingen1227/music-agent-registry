@@ -114,9 +114,8 @@ app.post("/agent/initialize", verifyStaker, async (req, res) => {
     // Verify wallet ownership
     const walletData = await agentRegistry.getAgentWallet(agentAddress, requestingAddress);
     if (!walletData) {
-      return res.status(401).json({ error: "Unauthorized to initialize this agent" });
+      return res.status(401).json({ error: "Wallet not found or unauthorized" });
     }
-
 
     //check if agent is already registered
     const isRegistered = await agentRegistry.checkAgentRegistration(agentAddress);
@@ -147,8 +146,6 @@ app.post("/agent/initialize", verifyStaker, async (req, res) => {
       }
     }
 
-    
-
     // Check balance
     const balance = await agentRegistry.checkAgentBalance(agentAddress);
     if (balance <= 0n) {
@@ -161,11 +158,9 @@ app.post("/agent/initialize", verifyStaker, async (req, res) => {
       return res.status(500).json({ error: "Failed to initialize agent" });
     }
 
-    const walletDataForAgent = walletData.walletData;
-
     // Spin up the agent instance
     try {
-      const { agent, config } = await initializeAgent(walletDataForAgent);
+      const { agent, config } = await initializeAgent(walletData);
       agents.set(agentAddress, { agent, config });
       console.log(`Agent instance spun up successfully for address: ${agentAddress}`);
     } catch (error) {
@@ -187,27 +182,27 @@ app.post("/agent/initialize", verifyStaker, async (req, res) => {
 });
 
 // Check agent status endpoint
-app.get("/agent/status", async (req, res) => {
-  try {
-    const agentAddress = req.query.address as string;
+// app.get("/agent/status", async (req, res) => {
+//   try {
+//     const agentAddress = req.query.address as string;
 
-    if (!agentAddress) {
-      return res.status(400).json({ error: "Agent address not provided" });
-    }
+//     if (!agentAddress) {
+//       return res.status(400).json({ error: "Agent address not provided" });
+//     }
 
-    const isRegistered = await agentRegistry.checkAgentRegistration(agentAddress);
-    const balance = await agentRegistry.checkAgentBalance(agentAddress);
+//     const isRegistered = await agentRegistry.checkAgentRegistration(agentAddress);
+//     const balance = await agentRegistry.checkAgentBalance(agentAddress);
 
-    res.json({
-      isRegistered,
-      balance: balance.toString(),
-      status: isRegistered ? "registered" : "unregistered"
-    });
-  } catch (error) {
-    console.error("Error checking agent status:", error);
-    res.status(500).json({ error: "Failed to check agent status" });
-  }
-});
+//     res.json({
+//       isRegistered,
+//       balance: balance.toString(),
+//       status: isRegistered ? "registered" : "unregistered"
+//     });
+//   } catch (error) {
+//     console.error("Error checking agent status:", error);
+//     res.status(500).json({ error: "Failed to check agent status" });
+//   }
+// });
 
 // Add this endpoint to check agent status
 app.get("/agent/status/:address", async (req, res) => {
@@ -228,39 +223,39 @@ app.get("/agent/status/:address", async (req, res) => {
 });
 
 // Get or initialize agent instance
-async function getOrInitializeAgent(agentAddress: string) {
-  // Check cache first
-  if (agents.has(agentAddress)) {
-    return agents.get(agentAddress)!;
-  }
+// async function getOrInitializeAgent(agentAddress: string) {
+//   // Check cache first
+//   if (agents.has(agentAddress)) {
+//     return agents.get(agentAddress)!;
+//   }
 
-  try {
-    // Check if agent is registered
-    const isRegistered = await agentRegistry.checkAgentRegistration(agentAddress);
-    if (!isRegistered) {
-      throw new Error("Agent not registered");
-    }
+//   try {
+//     // Check if agent is registered
+//     const isRegistered = await agentRegistry.checkAgentRegistration(agentAddress);
+//     if (!isRegistered) {
+//       throw new Error("Agent not registered");
+//     }
 
-    // Get agent wallet data from the agents directory
-    const walletPath = path.join(process.cwd(), "agents-wallets", `${agentAddress}-wallet.json`);
-    if (!fs.existsSync(walletPath)) {
-      throw new Error("Agent wallet not found");
-    }
+//     // Get agent wallet data from the agents directory
+//     const walletPath = path.join(process.cwd(), "agents-wallets", `${agentAddress}-wallet.json`);
+//     if (!fs.existsSync(walletPath)) {
+//       throw new Error("Agent wallet not found");
+//     }
 
-    // Load agent data including wallet and config
-    const agentData = JSON.parse(fs.readFileSync(walletPath, "utf8"));
+//     // Load agent data including wallet and config
+//     const agentData = JSON.parse(fs.readFileSync(walletPath, "utf8"));
     
-    // Initialize the agent with the wallet data
-    const { agent, config } = await initializeAgent(agentData.walletData);
+//     // Initialize the agent with the wallet data
+//     const { agent, config } = await initializeAgent(agentData.walletData);
 
-    // Cache the initialized agent
-    agents.set(agentAddress, { agent, config });
-    return { agent, config };
-  } catch (error) {
-    console.error("Error initializing agent:", error);
-    throw error;
-  }
-}
+//     // Cache the initialized agent
+//     agents.set(agentAddress, { agent, config });
+//     return { agent, config };
+//   } catch (error) {
+//     console.error("Error initializing agent:", error);
+//     throw error;
+//   }
+// }
 
 // Chat endpoint with staker verification
 app.post("/chat", verifyStaker, async (req, res) => {
@@ -282,26 +277,8 @@ app.post("/chat", verifyStaker, async (req, res) => {
 
     let agentInstance = agents.get(agentAddress);
 
-    // If agent is registered but not initialized in memory, try to initialize it
     if (!agentInstance) {
-      try {
-        const requestingAddress = req.headers["x-user-address"] as string;
-        const walletData = await agentRegistry.getAgentWallet(agentAddress, requestingAddress);
-        if (!walletData) {
-          return res.status(401).json({ error: "Unauthorized to interact with this agent" });
-        }
-
-        const { agent, config } = await initializeAgent(walletData.walletData);
-        agentInstance = { agent, config };
-        agents.set(agentAddress, agentInstance);
-        console.log(`Agent instance spun up on-demand for address: ${agentAddress}`);
-      } catch (error) {
-        console.error("Failed to initialize agent instance:", error);
-        return res.status(500).json({ 
-          error: "Failed to initialize agent instance",
-          details: error instanceof Error ? error.message : "Unknown error"
-        });
-      }
+      return res.status(500).json({ error: "Agent not initialized" });
     }
 
     // Construct the message based on whether it's a feedback submission or regular chat

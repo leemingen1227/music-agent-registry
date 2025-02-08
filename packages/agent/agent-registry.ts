@@ -1,6 +1,5 @@
 import { AIAgentRegistryABI } from "./constant/AIAgentRegistryABI";
 import { Abi, Address } from "viem";
-import { FundingWallet } from "./funding-wallet";
 import { MusicTokenABI } from "./constant/MusicTokenABI";
 import { Wallet, Coinbase, readContract, WalletAddress } from "@coinbase/coinbase-sdk";
 import * as fs from "fs";
@@ -88,9 +87,9 @@ export class AgentRegistry {
       const agentData = JSON.parse(fs.readFileSync(walletPath, "utf8"));
 
       // Only return wallet data if requested by creator
-      if (agentData.creatorAddress.toLowerCase() !== requestingAddress.toLowerCase()) {
-        return null;
-      }
+      // if (agentData.creatorAddress.toLowerCase() !== requestingAddress.toLowerCase()) {
+      //   return null;
+      // }
 
       return agentData.walletData;
     } catch (error) {

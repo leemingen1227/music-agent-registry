@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { AgentCard } from "./_components/AgentCard";
 import { useScaffoldEventHistory } from "~~/hooks/scaffold-eth";
 
@@ -30,13 +31,18 @@ const AgentsListPage = () => {
       strategy: event.args.strategy,
     }));
 
-    setAgentEvents(processedEvents);
+    setAgentEvents(processedEvents as AgentEvent[]);
   }, [events]);
 
   if (isLoadingEvents) {
     return (
       <div className="container mx-auto px-4 py-8">
-        <h1 className="text-4xl font-bold mb-8">AI Agents Directory</h1>
+        <div className="flex justify-between items-center mb-8">
+          <h1 className="text-4xl font-bold">AI Agents Directory</h1>
+          <Link href="/agents/create" className="btn btn-primary">
+            Create Agent
+          </Link>
+        </div>
         <div className="text-center py-10">
           <span className="loading loading-spinner loading-lg"></span>
           <p className="mt-4">Loading agents...</p>
@@ -47,7 +53,12 @@ const AgentsListPage = () => {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <h1 className="text-4xl font-bold mb-8">AI Agents Directory</h1>
+      <div className="flex justify-between items-center mb-8">
+        <h1 className="text-4xl font-bold">AI Agents Directory</h1>
+        <Link href="/agents/create" className="btn btn-primary">
+          Create Agent
+        </Link>
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {agentEvents.map(agent => (
@@ -62,7 +73,10 @@ const AgentsListPage = () => {
 
       {agentEvents.length === 0 && (
         <div className="text-center py-10">
-          <p className="text-lg">No agents registered yet.</p>
+          <p className="text-lg mb-4">No agents registered yet.</p>
+          <Link href="/agents/create" className="btn btn-primary">
+            Create Your First Agent
+          </Link>
         </div>
       )}
     </div>

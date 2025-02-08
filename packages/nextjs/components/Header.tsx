@@ -20,11 +20,6 @@ export const menuLinks: HeaderMenuLink[] = [
     href: "/",
   },
   {
-    label: "AI Agent Registry",
-    href: "/agent-registry",
-    icon: <UserCircleIcon className="h-4 w-4" />,
-  },
-  {
     label: "Agents Directory",
     href: "/agents",
     icon: <UserGroupIcon className="h-4 w-4" />,

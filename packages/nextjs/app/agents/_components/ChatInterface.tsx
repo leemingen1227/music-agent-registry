@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { FeedbackModal } from "./FeedbackModal";
 import { useAccount } from "wagmi";
 
@@ -25,16 +25,16 @@ export const ChatInterface = ({ agentAddress }: ChatInterfaceProps) => {
   useEffect(() => {
     const checkAgentStatus = async () => {
       if (!address) return;
-      
+
       try {
         const response = await fetch(`${process.env.NEXT_PUBLIC_AGENT_SERVER_URL}/agent/status/${agentAddress}`, {
           headers: {
             "X-User-Address": address,
           },
         });
-        
+
         if (!response.ok) throw new Error("Failed to check agent status");
-        
+
         const data = await response.json();
         setAgentStatus(data.status === "ready" ? "ready" : "error");
       } catch (error) {
@@ -101,6 +101,10 @@ export const ChatInterface = ({ agentAddress }: ChatInterfaceProps) => {
     }
   };
 
+  const handleFeedbackResponse = (response: string) => {
+    setMessages(prev => [...prev, { role: "agent", content: response }]);
+  };
+
   return (
     <>
       <div className="bg-base-200 rounded-lg p-4">
@@ -156,6 +160,7 @@ export const ChatInterface = ({ agentAddress }: ChatInterfaceProps) => {
         isOpen={showFeedbackModal}
         onClose={() => setShowFeedbackModal(false)}
         lastRecommendation={lastRecommendation}
+        onFeedbackResponse={handleFeedbackResponse}
       />
     </>
   );

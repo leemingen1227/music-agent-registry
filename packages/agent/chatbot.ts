@@ -68,7 +68,7 @@ const submitFeedbackProvider = customActionProvider<CdpWalletProvider>({
   schema: SubmitFeedbackSchema,
   invoke: async (walletProvider, args) => {
     try {
-      const walletData = JSON.parse(fs.readFileSync(`${agentAddress}-wallet.json`, "utf8"));
+      const walletData = await agentRegistry.getAgentWallet(agentAddress, agentAddress);
       const wallet = await Wallet.import(walletData, process.env.NETWORK_ID || "base-sepolia");
 
       const feedbackArgs = {
@@ -257,13 +257,7 @@ export async function initializeAgent(walletData: any) {
     };
 
     const walletProvider = await CdpWalletProvider.configureWithWallet(config);
-
-    const exportedWallet = await walletProvider.exportWallet();
-    console.log("exportedWallet", exportedWallet);
-
-    console.log("walletData", walletData);
-    console.log("walletProvider address", walletProvider.getAddress());
-
+   
     // Verify wallet is properly initialized
     const address = walletProvider.getAddress();
     agentAddress = address;

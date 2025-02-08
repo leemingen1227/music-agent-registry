@@ -8,9 +8,16 @@ interface FeedbackModalProps {
   isOpen: boolean;
   onClose: () => void;
   lastRecommendation: string;
+  onFeedbackResponse: (response: string) => void;
 }
 
-export const FeedbackModal = ({ agentAddress, isOpen, onClose, lastRecommendation }: FeedbackModalProps) => {
+export const FeedbackModal = ({
+  agentAddress,
+  isOpen,
+  onClose,
+  lastRecommendation,
+  onFeedbackResponse,
+}: FeedbackModalProps) => {
   const { address } = useAccount();
   const [feedback, setFeedback] = useState({
     alignsWithStrategy: true,
@@ -22,7 +29,7 @@ export const FeedbackModal = ({ agentAddress, isOpen, onClose, lastRecommendatio
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!address) return;
-    
+
     setIsSubmitting(true);
     try {
       const response = await fetch(`${process.env.NEXT_PUBLIC_AGENT_SERVER_URL}/chat`, {
@@ -48,6 +55,10 @@ export const FeedbackModal = ({ agentAddress, isOpen, onClose, lastRecommendatio
       if (!response.ok) {
         throw new Error("Failed to submit feedback");
       }
+
+      const data = await response.json();
+      const agentResponse = data.response.join(" ");
+      onFeedbackResponse(agentResponse);
 
       setFeedback({ alignsWithStrategy: true, rating: 5, comment: "" });
       onClose();
