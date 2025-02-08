@@ -128,6 +128,21 @@ const CreateAgentPage = () => {
     }
   };
 
+  const handleDownloadWallet = () => {
+    if (!walletData) return;
+    
+    const dataStr = JSON.stringify(walletData.walletData, null, 2);
+    const blob = new Blob([dataStr], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `agent-wallet-${walletData.agentAddress}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   const hasEnoughFunds =
     agentBalance &&
     agentEthBalance &&
@@ -208,10 +223,14 @@ const CreateAgentPage = () => {
 
                 <button
                   type="submit"
-                  className={`btn btn-primary w-full ${isSubmitting ? "loading" : ""}`}
+                  className="btn btn-primary w-full"
                   disabled={isSubmitting || !address}
                 >
-                  Create Agent Wallet
+                  {isSubmitting ? (
+                    <span className="loading loading-spinner loading-xs"></span>
+                  ) : (
+                    "Create Agent Wallet"
+                  )}
                 </button>
               </form>
             ) : step === "fund" ? (
@@ -233,6 +252,15 @@ const CreateAgentPage = () => {
                   <div>
                     <h3 className="font-bold">Agent Wallet Created!</h3>
                     <p>Agent Address: {walletData?.agentAddress}</p>
+                    <button
+                      onClick={handleDownloadWallet}
+                      className="btn btn-sm btn-ghost mt-2"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                      </svg>
+                      Download Wallet
+                    </button>
                   </div>
                 </div>
 
@@ -299,10 +327,14 @@ const CreateAgentPage = () => {
 
                 <button
                   onClick={handleInitializeAgent}
-                  className={`btn btn-primary w-full ${isSubmitting ? "loading" : ""}`}
+                  className="btn btn-primary w-full"
                   disabled={isSubmitting || !address}
                 >
-                  Initialize Agent
+                  {isSubmitting ? (
+                    <span className="loading loading-spinner loading-xs"></span>
+                  ) : (
+                    "Initialize Agent"
+                  )}
                 </button>
               </div>
             )}

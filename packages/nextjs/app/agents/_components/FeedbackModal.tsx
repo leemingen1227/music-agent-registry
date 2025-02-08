@@ -123,10 +123,14 @@ export const FeedbackModal = ({
           <div className="flex gap-2 mt-6">
             <button
               type="submit"
-              className={`btn btn-primary flex-1 ${isSubmitting ? "loading" : ""}`}
+              className={`btn btn-primary flex-1`}
               disabled={isSubmitting || !address}
             >
-              Submit Feedback
+              {isSubmitting ? (
+                <span className="loading loading-spinner loading-xs"></span>
+              ) : (
+                "Submit Feedback"
+              )}
             </button>
             <button type="button" className="btn btn-ghost" onClick={onClose} disabled={isSubmitting}>
               Cancel

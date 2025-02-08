@@ -46,60 +46,99 @@ const AgentPage = ({ params: { address } }: AgentPageProps) => {
   const getStatusBadge = () => {
     if (!status) return null;
 
-    const badgeClasses = {
-      ready: "badge-success",
-      registered: "badge-warning",
-      not_registered: "badge-error",
+    const badgeConfig = {
+      ready: {
+        class: "bg-success/10 text-success",
+        text: "Ready",
+        dotColor: "bg-success"
+      },
+      registered: {
+        class: "bg-warning/10 text-warning",
+        text: "Needs Initialization",
+        dotColor: "bg-warning"
+      },
+      not_registered: {
+        class: "bg-error/10 text-error",
+        text: "Not Registered",
+        dotColor: "bg-error"
+      }
     };
 
-    const statusText = {
-      ready: "Ready",
-      registered: "Needs Initialization",
-      not_registered: "Not Registered",
-    };
+    const config = badgeConfig[status.status];
 
     return (
-      <div className={`badge ${badgeClasses[status.status]} gap-2`}>
-        <div className={`w-2 h-2 rounded-full ${status.status === "ready" ? "bg-green-500" : "bg-yellow-500"}`}></div>
-        {statusText[status.status]}
+      <div className={`flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs font-medium ${config.class}`}>
+        <div className={`w-1.5 h-1.5 rounded-full ${config.dotColor}`} />
+        {config.text}
       </div>
     );
   };
 
   if (isLoading) {
     return (
-      <div className="container mx-auto px-4 py-8">
-        <div className="text-center py-10">
-          <span className="loading loading-spinner loading-lg"></span>
-          <p className="mt-4">Loading agent details...</p>
+      <div className="container mx-auto px-6 py-8 max-w-5xl">
+        <div className="animate-pulse space-y-8">
+          <div className="flex justify-between items-center">
+            <div className="h-8 bg-base-300 rounded w-1/4"></div>
+            <div className="flex gap-2">
+              <div className="h-10 bg-base-300 rounded w-32"></div>
+              <div className="h-10 bg-base-300 rounded w-32"></div>
+            </div>
+          </div>
+          <div className="card bg-base-200">
+            <div className="card-body space-y-6">
+              <div className="h-6 bg-base-300 rounded w-1/3"></div>
+              <div className="h-24 bg-base-300 rounded"></div>
+              <div className="grid grid-cols-3 gap-6">
+                <div className="h-24 bg-base-300 rounded"></div>
+                <div className="h-24 bg-base-300 rounded"></div>
+                <div className="h-24 bg-base-300 rounded"></div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="mb-8">
-        <div className="flex justify-between items-center mb-4">
-          <h1 className="text-4xl font-bold">Agent Details</h1>
-          <div className="flex gap-2">
+    <div className="container mx-auto px-6 py-8 max-w-5xl">
+      <div className="space-y-6">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div className="flex items-center gap-3">
+            <h1 className="text-3xl font-bold">Agent Details</h1>
+            {getStatusBadge()}
+          </div>
+          <div className="flex flex-wrap gap-2">
             {status?.status === "ready" && !hasActiveChallenge && (
-              <button className="btn btn-warning" onClick={() => setShowChallengeModal(true)}>
+              <button 
+                className="btn btn-sm bg-neutral-700 hover:bg-neutral-600 text-neutral-200 border-none" 
+                onClick={() => setShowChallengeModal(true)}
+              >
                 Challenge Agent
               </button>
             )}
             {hasActiveChallenge && (
-              <button className="btn btn-primary" onClick={() => setShowVoteChallengeModal(true)}>
+              <button 
+                className="btn btn-sm bg-neutral-700 hover:bg-neutral-600 text-neutral-200 border-none" 
+                onClick={() => setShowVoteChallengeModal(true)}
+              >
                 Vote on Challenge
               </button>
             )}
             {status?.status === "ready" && !hasActiveProposal && (
-              <button className="btn btn-info" onClick={() => setShowCreateProposalModal(true)}>
+              <button 
+                className="btn btn-sm bg-neutral-700 hover:bg-neutral-600 text-neutral-200 border-none" 
+                onClick={() => setShowCreateProposalModal(true)}
+              >
                 Propose Strategy Change
               </button>
             )}
             {hasActiveProposal && (
-              <button className="btn btn-primary" onClick={() => setShowVoteProposalModal(true)}>
+              <button 
+                className="btn btn-sm bg-neutral-700 hover:bg-neutral-600 text-neutral-200 border-none" 
+                onClick={() => setShowVoteProposalModal(true)}
+              >
                 Vote on Proposal
               </button>
             )}
@@ -107,69 +146,80 @@ const AgentPage = ({ params: { address } }: AgentPageProps) => {
         </div>
 
         <div className="card bg-base-200 shadow-xl">
-          <div className="card-body">
-            <h2 className="card-title text-lg font-semibold mb-4">Address: {address}</h2>
-
-            <div className="mb-6">
-              <h3 className="font-medium mb-2">Strategy:</h3>
-              <p className="text-sm bg-base-300 p-3 rounded">{strategy}</p>
-            </div>
-
-            <div className="grid grid-cols-3 gap-4 mb-6">
-              <div className="stat bg-base-300 rounded-box p-4">
-                <div className="stat-title">Total Feedback</div>
-                <div className="stat-value text-2xl">{stats.totalFeedbacks.toString()}</div>
+          <div className="card-body p-6">
+            <div className="space-y-4">
+              <div>
+                <span className="text-sm text-base-content/60 block mb-1">Address</span>
+                <p className="font-mono text-base bg-base-300/50 rounded-lg px-4 py-2">{address}</p>
               </div>
-              <div className="stat bg-base-300 rounded-box p-4">
-                <div className="stat-title">Positive Alignments</div>
-                <div className="stat-value text-2xl">{stats.positiveAlignments.toString()}</div>
+
+              <div>
+                <span className="text-sm text-base-content/60 block mb-1">Strategy</span>
+                <div className="bg-base-300/50 rounded-lg px-4 py-2">
+                  <p className="text-sm whitespace-pre-wrap">{strategy}</p>
+                </div>
               </div>
-              <div className="stat bg-base-300 rounded-box p-4">
-                <div className="stat-title">Average Rating</div>
-                <div className="stat-value text-2xl">{(Number(stats.averageRating) / 100).toFixed(2)}</div>
+
+              <div className="grid grid-cols-3 gap-3">
+                <div className="bg-base-300/30 rounded-lg px-3 py-2 text-center">
+                  <p className="text-2xl font-semibold">{stats.totalFeedbacks.toString()}</p>
+                  <p className="text-xs text-base-content/60">Total Feedback</p>
+                </div>
+                <div className="bg-base-300/30 rounded-lg px-3 py-2 text-center">
+                  <p className="text-2xl font-semibold">{stats.positiveAlignments.toString()}</p>
+                  <p className="text-xs text-base-content/60">Positive</p>
+                </div>
+                <div className="bg-base-300/30 rounded-lg px-3 py-2 text-center">
+                  <p className="text-2xl font-semibold">{(Number(stats.averageRating) / 100).toFixed(1)}</p>
+                  <p className="text-xs text-base-content/60">Avg Rating</p>
+                </div>
               </div>
             </div>
 
             {error && (
-              <div className="alert alert-error mb-6">
+              <div className="bg-error/10 text-error rounded-lg p-4 flex gap-3 mt-4">
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
-                  className="stroke-current shrink-0 h-6 w-6"
+                  className="h-5 w-5 shrink-0 mt-0.5"
                   fill="none"
                   viewBox="0 0 24 24"
+                  stroke="currentColor"
                 >
                   <path
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     strokeWidth="2"
-                    d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
+                    d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
                   />
                 </svg>
-                <span>{error}</span>
+                <span className="text-sm">{error}</span>
               </div>
             )}
 
             {status?.status === "registered" && (
-              <button className="btn btn-warning w-full mb-6" onClick={initializeAgent} disabled={isLoading}>
+              <button 
+                className="btn btn-warning w-full mt-4" 
+                onClick={initializeAgent} 
+                disabled={isLoading}
+              >
                 {isLoading ? (
-                  <>
-                    <span className="loading loading-spinner"></span>
-                    Initializing...
-                  </>
+                  <span className="loading loading-spinner loading-sm"></span>
                 ) : (
                   "Initialize Agent"
                 )}
               </button>
             )}
-
-            {status?.status === "ready" && (
-              <div className="mt-6">
-                <h3 className="font-medium mb-4">Chat with Agent</h3>
-                <ChatInterface agentAddress={address} />
-              </div>
-            )}
           </div>
         </div>
+
+        {status?.status === "ready" && (
+          <div className="card bg-base-200 shadow-xl">
+            <div className="card-body p-6">
+              <h3 className="text-sm text-base-content/60 mb-3">Chat with Agent</h3>
+              <ChatInterface agentAddress={address} />
+            </div>
+          </div>
+        )}
       </div>
 
       <ChallengeAgentModal

@@ -111,10 +111,14 @@ export const ChallengeAgentModal = ({ agentAddress, isOpen, onClose }: Challenge
           <div className="flex gap-2 mt-6">
             <button
               type="submit"
-              className={`btn btn-primary flex-1 ${isSubmitting ? "loading" : ""}`}
+              className="btn btn-primary flex-1"
               disabled={isSubmitting || !address || parseFloat(stakeAmount) < 100}
             >
-              Challenge Agent
+              {isSubmitting ? (
+                <span className="loading loading-spinner loading-xs"></span>
+              ) : (
+                "Challenge Agent"
+              )}
             </button>
             <button type="button" className="btn btn-ghost" onClick={onClose} disabled={isSubmitting}>
               Cancel
