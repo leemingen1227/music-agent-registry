@@ -97,6 +97,12 @@ export const VoteChallengeModal = ({
   const timeLeft = Math.max(0, challengeEndTime - Math.floor(Date.now() / 1000));
   const daysLeft = Math.floor(timeLeft / (24 * 60 * 60));
   const hoursLeft = Math.floor((timeLeft % (24 * 60 * 60)) / (60 * 60));
+  const minutesLeft = Math.floor((timeLeft % (60 * 60)) / 60);
+
+  // Convert wei to ether for display
+  const votesForEther = Number(votesFor) / 1e18;
+  const votesAgainstEther = Number(votesAgainst) / 1e18;
+  const totalVotesEther = Number(totalVotes) / 1e18;
 
   if (!isOpen) return null;
 
@@ -121,8 +127,9 @@ export const VoteChallengeModal = ({
               <div className="bg-success h-2.5 rounded-full" style={{ width: `${forPercentage}%` }}></div>
             </div>
             <div className="mt-2 text-sm">
-              <p>Support: {votesFor.toString()} votes</p>
-              <p>Against: {votesAgainst.toString()} votes</p>
+              <p>Support: {votesForEther.toFixed(2)} MUSIC</p>
+              <p>Against: {votesAgainstEther.toFixed(2)} MUSIC</p>
+              <p className="mt-1 text-base-content/70">Total Votes: {totalVotesEther.toFixed(2)} MUSIC</p>
             </div>
           </div>
         </div>
@@ -130,7 +137,7 @@ export const VoteChallengeModal = ({
         <div className="mb-6">
           <h3 className="font-medium mb-2">Time Remaining:</h3>
           <p className="text-sm">
-            {daysLeft}d {hoursLeft}h
+            {daysLeft}d {hoursLeft}h {minutesLeft}m
           </p>
         </div>
 
@@ -254,10 +261,14 @@ export const VoteChallengeModal = ({
             <div className="flex gap-2 mt-6">
               <button
                 type="submit"
-                className={`btn btn-primary flex-1 ${isSubmitting ? "loading" : ""}`}
+                className="btn btn-primary flex-1"
                 disabled={isSubmitting || !address || parseFloat(stakeAmount) < 1 || timeLeft <= 0}
               >
-                Cast Vote
+                {isSubmitting ? (
+                  <span className="loading loading-spinner loading-xs"></span>
+                ) : (
+                  "Cast Vote"
+                )}
               </button>
               <button type="button" className="btn btn-ghost" onClick={onClose} disabled={isSubmitting}>
                 Cancel

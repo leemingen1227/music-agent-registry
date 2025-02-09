@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useAccount, useBalance } from "wagmi";
 import { AgentCard } from "./_components/AgentCard";
-import { useScaffoldEventHistory } from "~~/hooks/scaffold-eth";
+import { useScaffoldEventHistory, useScaffoldContract } from "~~/hooks/scaffold-eth";
 
 interface AgentEvent {
   address: string;
@@ -12,6 +13,7 @@ interface AgentEvent {
 }
 
 const AgentsListPage = () => {
+  const { address } = useAccount();
   const [agentEvents, setAgentEvents] = useState<AgentEvent[]>([]);
 
   // Get agent submission events
@@ -19,6 +21,25 @@ const AgentsListPage = () => {
     contractName: "AIAgentRegistry",
     eventName: "AgentSubmitted",
     fromBlock: 0n,
+  });
+
+  // Get registry's MUSIC token balance
+  const { data: musicTokenContract } = useScaffoldContract({
+    contractName: "MusicToken",
+  });
+
+  const { data: registryContract } = useScaffoldContract({
+    contractName: "AIAgentRegistry",
+  });
+
+  const { data: registryBalance } = useBalance({
+    address: registryContract?.address,
+    token: musicTokenContract?.address,
+  });
+
+  const { data: userBalance } = useBalance({
+    address,
+    token: musicTokenContract?.address,
   });
 
   // Process events into agents list
@@ -54,7 +75,19 @@ const AgentsListPage = () => {
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="flex justify-between items-center mb-8">
-        <h1 className="text-4xl font-bold">AI Agents Directory</h1>
+        <div>
+          <h1 className="text-4xl font-bold">AI Agents Directory</h1>
+          <div className="mt-2 space-y-1">
+            <div className="text-base-content/70">
+              Registry Balance: {registryBalance ? Number(registryBalance.value) / 1e18 : "0"} MUSIC
+            </div>
+            {address && (
+              <div className="text-base-content/70">
+                Your Balance: {userBalance ? Number(userBalance.value) / 1e18 : "0"} MUSIC
+              </div>
+            )}
+          </div>
+        </div>
         <Link href="/agents/create" className="btn btn-primary">
           Create Agent
         </Link>

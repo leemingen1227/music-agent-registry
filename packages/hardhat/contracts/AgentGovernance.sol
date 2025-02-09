@@ -40,7 +40,7 @@ contract AgentGovernance is Ownable, ReentrancyGuard {
         mapping(address => bool) hasVoted;
     }
     
-    uint256 public constant VOTING_PERIOD = 3 days;
+    uint256 public constant VOTING_PERIOD = 10 minutes;
     uint256 public constant MIN_TOKENS_TO_PROPOSE = 100 * 10**18; // 100 tokens
     
     mapping(uint256 => Proposal) public proposals;
@@ -48,19 +48,19 @@ contract AgentGovernance is Ownable, ReentrancyGuard {
     
     event ProposalCreated(
         uint256 indexed proposalId,
-        address agentAddress,
+        address indexed agentAddress,
         string description,
         string newStrategy,
-        address proposer
+        address indexed proposer
     );
     event VoteCast(
         uint256 indexed proposalId,
-        address voter,
+        address indexed voter,
         bool support
     );
     event ProposalExecuted(
         uint256 indexed proposalId,
-        address agentAddress,
+        address indexed agentAddress,
         bool accepted
     );
     

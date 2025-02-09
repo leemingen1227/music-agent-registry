@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { FeedbackModal } from "./FeedbackModal";
 import { useAccount } from "wagmi";
 
@@ -21,6 +21,7 @@ export const ChatInterface = ({ agentAddress }: ChatInterfaceProps) => {
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [lastRecommendation, setLastRecommendation] = useState("");
   const [agentStatus, setAgentStatus] = useState<"loading" | "ready" | "error">("loading");
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const checkAgentStatus = async () => {
@@ -47,6 +48,14 @@ export const ChatInterface = ({ agentAddress }: ChatInterfaceProps) => {
       checkAgentStatus();
     }
   }, [agentAddress, address]);
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
 
   if (agentStatus === "loading") {
     return <div className="loading loading-spinner loading-lg"></div>;
@@ -106,54 +115,63 @@ export const ChatInterface = ({ agentAddress }: ChatInterfaceProps) => {
   };
 
   return (
-    <>
-      <div className="bg-base-200 rounded-lg p-4">
-        <div className="flex flex-col space-y-4 h-[400px]">
-          <div className="flex-1 overflow-y-auto space-y-4 p-4">
-            {messages.map((message, index) => (
-              <div key={index} className={`chat ${message.role === "user" ? "chat-end" : "chat-start"}`}>
-                <div
-                  className={`chat-bubble ${message.role === "user" ? "chat-bubble-primary" : "chat-bubble-secondary"}`}
-                >
-                  {message.content}
-                </div>
-                {message.role === "agent" && index === messages.length - 1 && (
-                  <div className="chat-footer opacity-50 text-xs flex gap-1 items-center mt-1">
-                    <button onClick={() => setShowFeedbackModal(true)} className="btn btn-xs btn-ghost">
-                      Give Feedback
-                    </button>
-                  </div>
-                )}
+    <div className="flex flex-col h-full">
+      <div className="flex-grow overflow-y-auto mb-4 space-y-4">
+        {messages.map((message, index) => (
+          <div
+            key={index}
+            className={`flex ${message.role === "user" ? "justify-end" : "justify-start"} w-full`}
+          >
+            <div className="flex flex-col max-w-[80%]">
+              <div
+                className={`break-words rounded-lg px-4 py-2 ${
+                  message.role === "user"
+                    ? "bg-primary text-primary-content"
+                    : "bg-secondary text-secondary-content"
+                }`}
+              >
+                <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
               </div>
-            ))}
-            {isLoading && (
-              <div className="chat chat-start">
-                <div className="chat-bubble chat-bubble-secondary">
-                  <span className="loading loading-dots loading-sm"></span>
+              {message.role === "agent" && index === messages.length - 1 && (
+                <div className="mt-1 ml-2">
+                  <button 
+                    onClick={() => setShowFeedbackModal(true)} 
+                    className="btn btn-xs btn-ghost text-base-content/60 hover:text-base-content"
+                  >
+                    Give Feedback
+                  </button>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
-
-          <form onSubmit={handleSubmit} className="flex gap-2">
-            <input
-              type="text"
-              value={newMessage}
-              onChange={e => setNewMessage(e.target.value)}
-              placeholder="Type your message..."
-              className="input input-bordered flex-1"
-              disabled={isLoading}
-            />
-            <button
-              type="submit"
-              className={`btn btn-primary ${isLoading ? "loading" : ""}`}
-              disabled={isLoading || !newMessage.trim()}
-            >
-              Send
-            </button>
-          </form>
-        </div>
+        ))}
+        {isLoading && (
+          <div className="flex justify-start">
+            <div className="bg-neutral text-neutral-content max-w-[80%] rounded-lg px-4 py-2">
+              <span className="loading loading-dots loading-sm"></span>
+            </div>
+          </div>
+        )}
+        <div ref={messagesEndRef} />
       </div>
+
+      <form onSubmit={handleSubmit} className="flex gap-2">
+        <input
+          type="text"
+          value={newMessage}
+          onChange={e => setNewMessage(e.target.value)}
+          placeholder="Type your message..."
+          className="input input-bordered flex-grow bg-base-100"
+          disabled={isLoading}
+        />
+        <button
+          type="submit"
+          className={`btn btn-primary ${isLoading ? "loading" : ""}`}
+          disabled={isLoading || !newMessage.trim()}
+        >
+          Send
+        </button>
+      </form>
 
       <FeedbackModal
         agentAddress={agentAddress}
@@ -162,6 +180,6 @@ export const ChatInterface = ({ agentAddress }: ChatInterfaceProps) => {
         lastRecommendation={lastRecommendation}
         onFeedbackResponse={handleFeedbackResponse}
       />
-    </>
+    </div>
   );
 };

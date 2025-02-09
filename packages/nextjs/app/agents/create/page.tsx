@@ -150,74 +150,90 @@ const CreateAgentPage = () => {
     BigInt(agentEthBalance.value) > 0n;
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="max-w-2xl mx-auto">
-        <h1 className="text-4xl font-bold mb-8">Create New Agent</h1>
+    <div className="container mx-auto px-4 py-12">
+      <div className="max-w-3xl mx-auto">
+        <div className="mb-12 text-center">
+          <h1 className="text-4xl font-bold mb-4 text-base-content">Create New Agent</h1>
+          <p className="text-base-content/70 max-w-2xl mx-auto">Register your AI agent with a strategy and stake to join the decentralized music recommendation network.</p>
+        </div>
 
-        <div className="card bg-base-200 shadow-xl">
-          <div className="card-body">
+        {/* Progress Steps */}
+        <div className="mb-8">
+          <ul className="steps steps-horizontal w-full">
+            <li className={`step ${step === "create" ? "step-primary" : step === "fund" || step === "initialize" ? "step-primary step-success" : ""}`}>Configure</li>
+            <li className={`step ${step === "fund" ? "step-primary" : step === "initialize" ? "step-primary step-success" : ""}`}>Fund</li>
+            <li className={`step ${step === "initialize" ? "step-primary" : ""}`}>Initialize</li>
+          </ul>
+        </div>
+
+        <div className="card bg-base-100 shadow-xl border border-base-300">
+          <div className="card-body p-8">
             {step === "create" ? (
-              <form onSubmit={handleCreateAgent} className="space-y-6">
-                <div>
+              <form onSubmit={handleCreateAgent} className="space-y-8">
+                <div className="form-control">
                   <label className="label">
-                    <span className="label-text">Strategy</span>
+                    <div>
+                      <span className="label-text text-base font-semibold">Strategy</span>
+                      <p className="text-sm text-base-content/60 mt-1">Define how your agent will handle music recommendations and user interactions</p>
+                    </div>
                   </label>
                   <textarea
-                    className="textarea textarea-bordered w-full h-32"
+                    className="textarea textarea-bordered min-h-[200px] bg-base-100 font-mono text-sm rounded-3xl"
                     value={formData.strategy}
                     onChange={e => setFormData({ ...formData, strategy: e.target.value })}
-                    placeholder="Enter the agent's strategy..."
+                    placeholder="Example: 1. When receiving music recommendations: - Analyze user's previous interactions - Consider genre preferences - Factor in current trends 2. For user interactions: - Maintain conversational context - Provide detailed explanations - Adapt to feedback"
                     required
                   />
                 </div>
 
-                <div>
+                <div className="form-control">
                   <label className="label">
-                    <span className="label-text">Initial Stake (MUSIC tokens)</span>
+                    <div>
+                      <span className="label-text text-base font-semibold">Initial Stake</span>
+                      <p className="text-sm text-base-content/60 mt-1">Minimum requirement: 100 MUSIC tokens</p>
+                    </div>
                   </label>
-                  <input
-                    type="number"
-                    min="100"
-                    step="1"
-                    className="input input-bordered w-full"
-                    value={formData.stake}
-                    onChange={e => setFormData({ ...formData, stake: e.target.value })}
-                    placeholder="Minimum 100 MUSIC tokens"
-                    required
-                  />
+                  <div className="relative">
+                    <input
+                      type="number"
+                      min="100"
+                      step="1"
+                      className="input input-bordered w-full bg-base-100 font-mono rounded-3xl pr-24"
+                      value={formData.stake}
+                      onChange={e => setFormData({ ...formData, stake: e.target.value })}
+                      placeholder="Enter stake amount"
+                      required
+                    />
+                    <span className="absolute right-4 top-1/2 -translate-y-1/2 font-mono text-base-content/70">
+                      MUSIC
+                    </span>
+                  </div>
                 </div>
 
-                <div>
+                <div className="form-control">
                   <label className="label">
-                    <span className="label-text">Metadata</span>
+                    <div>
+                      <span className="label-text text-base font-semibold">Metadata</span>
+                      <p className="text-sm text-base-content/60 mt-1">IPFS hash or additional configuration data</p>
+                    </div>
                   </label>
                   <input
                     type="text"
-                    className="input input-bordered w-full"
+                    className="input input-bordered bg-base-100 font-mono text-sm rounded-3xl"
                     value={formData.metadata}
                     onChange={e => setFormData({ ...formData, metadata: e.target.value })}
-                    placeholder="IPFS hash or other metadata"
+                    placeholder="ipfs://..."
                     required
                   />
                 </div>
 
-                <div className="alert alert-info">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    className="stroke-current shrink-0 w-6 h-6"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth="2"
-                      d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                    ></path>
+                <div className="alert bg-info/10 text-info border-info/20">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" className="stroke-current shrink-0 w-6 h-6">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                   </svg>
                   <div>
-                    <p>Creating an agent requires a minimum stake of 100 MUSIC tokens.</p>
-                    <p>You'll need to fund the agent's wallet after creation.</p>
+                    <h3 className="font-medium mb-1">Important Information</h3>
+                    <p className="text-sm opacity-90">Creating an agent requires a minimum stake of 100 MUSIC tokens. After creation, you'll need to fund the agent's wallet.</p>
                   </div>
                 </div>
 
@@ -227,101 +243,101 @@ const CreateAgentPage = () => {
                   disabled={isSubmitting || !address}
                 >
                   {isSubmitting ? (
-                    <span className="loading loading-spinner loading-xs"></span>
+                    <>
+                      <span className="loading loading-spinner loading-sm"></span>
+                      Creating Wallet...
+                    </>
                   ) : (
                     "Create Agent Wallet"
                   )}
                 </button>
               </form>
             ) : step === "fund" ? (
-              <div className="space-y-6">
-                <div className="alert alert-success">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="stroke-current shrink-0 h-6 w-6"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth="2"
-                      d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                    />
+              <div className="space-y-8">
+                <div className="alert bg-success/10 border border-success/20">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="stroke-success shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
-                  <div>
-                    <h3 className="font-bold">Agent Wallet Created!</h3>
-                    <p>Agent Address: {walletData?.agentAddress}</p>
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-success mb-2">Agent Wallet Created Successfully</h3>
+                    <div className="p-3 bg-base-200 rounded-lg font-mono text-sm break-all">
+                      {walletData?.agentAddress}
+                    </div>
                     <button
                       onClick={handleDownloadWallet}
-                      className="btn btn-sm btn-ghost mt-2"
+                      className="btn btn-sm btn-ghost gap-2 mt-3 text-success"
                     >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                       </svg>
-                      Download Wallet
+                      Download Wallet Configuration
                     </button>
                   </div>
                 </div>
 
-                <div className="alert alert-info">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    className="stroke-current shrink-0 w-6 h-6"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth="2"
-                      d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                    ></path>
-                  </svg>
-                  <div>
-                    <p>Please fund the agent's wallet with:</p>
-                    <ul className="list-disc list-inside mt-2">
-                      <li>
-                        {formData.stake} MUSIC tokens (current: {agentBalance?.formatted || "0"})
-                      </li>
-                      <li>Some ETH for gas (current: {agentEthBalance?.formatted || "0"})</li>
-                    </ul>
+                <div className="card bg-base-200">
+                  <div className="card-body">
+                    <h3 className="card-title text-base-content">Required Funding</h3>
+                    <div className="divider my-2"></div>
+                    <div className="space-y-4">
+                      <div className="flex justify-between items-center p-4 bg-base-100 rounded-xl">
+                        <div>
+                          <h4 className="font-medium">MUSIC Tokens</h4>
+                          <p className="text-sm text-base-content/60">Required for agent registration</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-mono text-lg">{formData.stake} MUSIC</p>
+                          <p className="text-sm text-base-content/60">Current: {agentBalance?.formatted || "0"}</p>
+                        </div>
+                      </div>
+                      <div className="flex justify-between items-center p-4 bg-base-100 rounded-xl">
+                        <div>
+                          <h4 className="font-medium">ETH Balance</h4>
+                          <p className="text-sm text-base-content/60">Required for transaction fees</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-mono text-lg">{agentEthBalance?.formatted || "0"} ETH</p>
+                          <p className="text-sm text-base-content/60">For gas fees</p>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
                 <div className="flex flex-col gap-4">
                   <button
                     onClick={handleTransferTokens}
-                    className={`btn btn-primary ${isSubmitting ? "loading" : ""}`}
+                    className="btn btn-primary"
                     disabled={isSubmitting}
                   >
-                    Transfer MUSIC Tokens
+                    {isSubmitting ? (
+                      <>
+                        <span className="loading loading-spinner loading-sm"></span>
+                        Transferring Tokens...
+                      </>
+                    ) : (
+                      "Transfer MUSIC Tokens"
+                    )}
                   </button>
 
-                  <button onClick={() => setStep("initialize")} className="btn btn-primary" disabled={!hasEnoughFunds}>
-                    Continue to Initialize
+                  <button 
+                    onClick={() => setStep("initialize")} 
+                    className="btn btn-primary btn-outline" 
+                    disabled={!hasEnoughFunds}
+                  >
+                    Continue to Initialization
                   </button>
                 </div>
               </div>
             ) : (
-              <div className="space-y-6">
-                <div className="alert alert-info">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    className="stroke-current shrink-0 w-6 h-6"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth="2"
-                      d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                    ></path>
+              <div className="space-y-8">
+                <div className="alert bg-info/10 border-info/20">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" className="stroke-info shrink-0 w-6 h-6">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                   </svg>
                   <div>
-                    <p>Your agent's wallet has been funded.</p>
-                    <p>Click below to initialize the agent and register it on the blockchain.</p>
+                    <h3 className="font-semibold mb-2">Ready for Initialization</h3>
+                    <p className="text-sm opacity-90">Your agent's wallet has been successfully funded and is ready to be initialized on the blockchain. This final step will register your agent in the network.</p>
                   </div>
                 </div>
 
@@ -331,7 +347,10 @@ const CreateAgentPage = () => {
                   disabled={isSubmitting || !address}
                 >
                   {isSubmitting ? (
-                    <span className="loading loading-spinner loading-xs"></span>
+                    <>
+                      <span className="loading loading-spinner loading-sm"></span>
+                      Initializing Agent...
+                    </>
                   ) : (
                     "Initialize Agent"
                   )}

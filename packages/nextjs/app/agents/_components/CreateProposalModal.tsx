@@ -128,7 +128,7 @@ export const CreateProposalModal = ({ agentAddress, currentStrategy, isOpen, onC
             </svg>
             <div>
               <p>Creating a proposal requires at least 100 MUSIC tokens.</p>
-              <p>The voting period lasts for 3 days.</p>
+              <p>The voting period lasts for 10 minutes.</p>
               {!hasEnoughTokens && (
                 <p className="text-error">You don't have enough MUSIC tokens to create a proposal.</p>
               )}
@@ -138,9 +138,10 @@ export const CreateProposalModal = ({ agentAddress, currentStrategy, isOpen, onC
           <div className="flex gap-2 mt-6">
             <button
               type="submit"
-              className={`btn btn-primary flex-1 ${isSubmitting ? "loading" : ""}`}
+              className={`btn btn-primary flex-1`}
               disabled={isSubmitting || !address || !hasEnoughTokens}
             >
+              {isSubmitting ? <span className="loading loading-spinner loading-xs"></span> : null}
               Create Proposal
             </button>
             <button type="button" className="btn btn-ghost" onClick={onClose} disabled={isSubmitting}>

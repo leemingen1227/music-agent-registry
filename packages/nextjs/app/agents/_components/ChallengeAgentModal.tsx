@@ -104,7 +104,7 @@ export const ChallengeAgentModal = ({ agentAddress, isOpen, onClose }: Challenge
             </svg>
             <div>
               <p>Challenging an agent requires a minimum stake of 100 MUSIC tokens.</p>
-              <p>The challenge period lasts for 3 days during which token holders can vote.</p>
+              <p>The challenge period lasts for 10 minutes during which token holders can vote.</p>
             </div>
           </div>
 

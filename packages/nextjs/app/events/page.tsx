@@ -102,10 +102,10 @@ const Events: NextPage = () => {
               <table className="table table-zebra w-full">
                 <thead>
                   <tr>
-                    <th className="bg-primary">Owner</th>
-                    <th className="bg-primary">Model Hash</th>
-                    <th className="bg-primary">Metadata</th>
+                    <th className="bg-primary">Model Address</th>
                     <th className="bg-primary">Stake</th>
+                    <th className="bg-primary">Strategy</th>
+                    <th className="bg-primary">Metadata</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -116,10 +116,10 @@ const Events: NextPage = () => {
                   ) : (
                     agentSubmittedEvents?.map((event, index) => (
                       <tr key={index}>
-                        <td><Address address={event.args.owner} /></td>
-                        <td>{event.args.modelHash}</td>
-                        <td>{event.args.metadata}</td>
+                        <td>{event.args.modelAddress}</td>
                         <td>{formatEther(event.args.stake)} MUSIC</td>
+                        <td>{event.args.strategy}</td>
+                        <td>{event.args.metadata}</td>
                       </tr>
                     ))
                   )}

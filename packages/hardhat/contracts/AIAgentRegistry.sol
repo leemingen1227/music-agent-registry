@@ -15,7 +15,7 @@ contract AIAgentRegistry is Ownable, ReentrancyGuard {
     IERC20 public musicToken;
     
     uint256 public constant MIN_STAKE_AMOUNT = 100 * 10**18; // 100 MUSIC tokens
-    uint256 public constant CHALLENGE_PERIOD = 3 days;
+    uint256 public constant CHALLENGE_PERIOD = 10 minutes;
     uint256 public constant REWARD_PERCENTAGE = 70; // 70% goes to winners, 30% to voters
     
     // Simplified on-chain feedback stats
@@ -53,9 +53,9 @@ contract AIAgentRegistry is Ownable, ReentrancyGuard {
     mapping(address => mapping(address => uint256)) public lastFeedbackTime;
     
     // Updated events
-    event AgentSubmitted(address modelAddress, uint256 stake, string metadata, string strategy);
+    event AgentSubmitted(address indexed modelAddress, uint256 stake, string metadata, string strategy);
     event AgentChallenged(address indexed modelAddress, address challenger, uint256 stake);
-    event VoteCast(address indexed modelAddress, address voter, bool support, uint256 stake);
+    event VoteCast(address indexed modelAddress, address indexed voter, bool support, uint256 stake);
     event ChallengeResolved(address indexed modelAddress, bool accepted, uint256 winnerReward, uint256 voterRewards);
     event StakeIncreased(address indexed modelAddress, uint256 additionalStake);
     event StrategyUpdated(
