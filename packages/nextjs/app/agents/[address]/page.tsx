@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { ChallengeAgentModal } from "../_components/ChallengeAgentModal";
 import { ChatInterface } from "../_components/ChatInterface";
 import { CreateProposalModal } from "../_components/CreateProposalModal";
@@ -35,6 +36,7 @@ interface Proposal {
 }
 
 const AgentPage = ({ params: { address } }: AgentPageProps) => {
+  const router = useRouter();
   const { address: userAddress } = useAccount();
   const { stats, strategy, isLoading: isLoadingData } = useAgentData(address);
   const { status, isLoading: isLoadingStatus, error, initializeAgent } = useAgentStatus(address);
@@ -50,6 +52,8 @@ const AgentPage = ({ params: { address } }: AgentPageProps) => {
     fromBlock: 0n,
     filters: { agentAddress: address }
   });
+  const [isCheckingAgent, setIsCheckingAgent] = useState(true);
+  const [agentError, setAgentError] = useState<string | null>(null);
 
   // Get all proposal IDs from events
   const proposalIds = proposalEvents?.map(event => event.args.proposalId) || [];
@@ -161,24 +165,53 @@ const AgentPage = ({ params: { address } }: AgentPageProps) => {
   const hasActiveProposal = activeProposal !== null;
   const isListed = agentInfo && agentInfo[2];
 
-  // Redirect if agent doesn't exist
+  // Improved agent existence check with longer delays and better checks
   useEffect(() => {
-    if (!isLoading && !agentInfo) {
-      window.location.href = '/agents';
-    }
-  }, [isLoading, agentInfo]);
+    const checkAgent = async () => {
+      if (!isLoading) {
+        if (!agentInfo) {
+          // First delay to ensure data is fully loaded
+          await new Promise(resolve => setTimeout(resolve, 3000));
+          
+          // Refetch agent info after first delay
+          await refetchAgentInfo();
+          
+          // Second check after refetch
+          if (!agentInfo) {
+            // Additional delay before final check
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            
+            // Final refetch
+            const result = await refetchAgentInfo();
+            
+            // Only set error and redirect if still no agent info after multiple attempts
+            if (!result.data) {
+              setAgentError("Agent not found or not registered");
+              // Longer delay before redirect
+              setTimeout(() => {
+                router.push('/agents');
+              }, 5000); // 5 seconds to read the error
+            }
+          }
+        }
+        setIsCheckingAgent(false);
+      }
+    };
+
+    checkAgent();
+  }, [isLoading, agentInfo, router, refetchAgentInfo]);
 
   const getStatusBadge = () => {
     if (!status) return null;
 
-    if (!isListed) {
-      return (
-        <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs font-medium bg-error/10 text-error">
-          <div className="w-1.5 h-1.5 rounded-full bg-error" />
-          Delisted
-        </div>
-      );
-    }
+    // if (!isListed) {
+    //   return (
+    //     <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs font-medium bg-error/10 text-error">
+    //       <div className="w-1.5 h-1.5 rounded-full bg-error" />
+    //       Delisted
+    //     </div>
+    //   );
+    // }
 
     const badgeConfig: Record<string, { class: string; text: string; dotColor: string }> = {
       ready: {
@@ -208,38 +241,41 @@ const AgentPage = ({ params: { address } }: AgentPageProps) => {
     );
   };
 
-  if (isLoading) {
+  // Loading state with more detailed message
+  if (isLoading || isCheckingAgent) {
     return (
       <div className="container mx-auto px-6 py-8">
-        <div className="animate-pulse space-y-8">
-          <div className="flex justify-between items-center">
-            <div className="h-8 bg-base-300 rounded w-1/4"></div>
-            <div className="flex gap-2">
-              <div className="h-10 bg-base-300 rounded w-32"></div>
-              <div className="h-10 bg-base-300 rounded w-32"></div>
-            </div>
+        <div className="text-center">
+          <span className="loading loading-spinner loading-lg"></span>
+          <div className="mt-4 space-y-2">
+            <p className="text-lg font-medium">Loading agent details...</p>
+            <p className="text-sm text-base-content/70">
+              {isCheckingAgent ? "Verifying agent existence..." : "Fetching agent information..."}
+            </p>
           </div>
-          <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-            <div className="lg:col-span-3">
-              <div className="card bg-base-200">
-                <div className="card-body space-y-6">
-                  <div className="h-6 bg-base-300 rounded w-1/3"></div>
-                  <div className="h-24 bg-base-300 rounded"></div>
-                  <div className="grid grid-cols-3 gap-6">
-                    <div className="h-24 bg-base-300 rounded"></div>
-                    <div className="h-24 bg-base-300 rounded"></div>
-                    <div className="h-24 bg-base-300 rounded"></div>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div className="lg:col-span-2">
-              <div className="card bg-base-200">
-                <div className="card-body">
-                  <div className="h-[600px] bg-base-300 rounded"></div>
-                </div>
-              </div>
-            </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state with more context and longer display
+  if (agentError) {
+    return (
+      <div className="container mx-auto px-6 py-8">
+        <div className="alert alert-error">
+          <svg xmlns="http://www.w3.org/2000/svg" className="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <div>
+            <h3 className="font-bold">Agent Not Found</h3>
+            <div className="text-sm">{agentError}</div>
+            <div className="text-sm mt-2">Redirecting to agents list in 5 seconds...</div>
+            <button 
+              className="btn btn-sm btn-outline mt-3"
+              onClick={() => router.push('/agents')}
+            >
+              Return to Agents List
+            </button>
           </div>
         </div>
       </div>
@@ -286,7 +322,7 @@ const AgentPage = ({ params: { address } }: AgentPageProps) => {
         <div className="lg:col-span-3 space-y-6">
           <div className={`card ${isListed ? 'bg-base-200' : 'bg-base-200/50'} shadow-xl`}>
             <div className="card-body p-6">
-              {!isListed && (
+              {/* {!isListed && (
                 <div className="alert alert-error mb-4">
                   <svg xmlns="http://www.w3.org/2000/svg" className="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
@@ -296,8 +332,8 @@ const AgentPage = ({ params: { address } }: AgentPageProps) => {
                     <div className="text-sm">This agent has been delisted due to a successful challenge and is no longer active.</div>
                   </div>
                 </div>
-              )}
-              <div className={`space-y-4 ${!isListed ? 'opacity-75' : ''}`}>
+              )} */}
+              <div className={`space-y-4`}>
                 <div>
                   <span className="text-sm text-base-content/60 block mb-1">Address</span>
                   <p className="font-mono text-base bg-base-300/50 rounded-lg px-4 py-2">{address}</p>
